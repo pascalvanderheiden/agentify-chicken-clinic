@@ -1,0 +1,349 @@
+# Squad Decisions
+
+## Accepted Decisions (Issues #9–#12, Commit eff15d8)
+
+### DEC-001: First Feature — Clinic Assistant
+
+**Date:** 2026-08-25
+**Status:** Accepted (completed and verified by full test suite)
+**Delivered by:** Trinity (backend), Switch (testing), Morpheus (architecture/review)
+
+**Decision:** The first feature built is a staff-facing, read-only Clinic Assistant conversational agent.
+
+**Constraints (from safety envelope):**
+- Staff-facing and read-only — no write tools, no mutations
+- Single Spring Boot process — no additional services
+- Framework-agnostic read-only query boundary with purpose-built records (not JPA entities)
+- Default integration: Spring AI 2.0 with Microsoft Foundry OpenAI-compatible endpoint
+- Answer only from retrieved PetClinic data; admit absent records; never guess identity
+- No RAG, Azure AI Search, Foundry project/Agent Service, additional databases, or persistent transcripts
+- No veterinary diagnosis or treatment advice
+
+**Delivered capabilities:**
+- Find owners by partial last name (case-insensitive, capped at 5 results)
+- Find pets by name across all owners (capped at 5, with owner name identifying context)
+- List veterinarians and answer specialty questions
+- Ambiguous results prompt narrowing; absent results explicitly admitted
+- All lookups recorded with concise, grounded activity trace
+
+**Architectural seams (three-layer):**
+1. **Read-only query boundary** (`ClinicQueryService` + purpose-built records) — framework-agnostic facade returning `OwnerRecord`, `PetRecord`, `VisitRecord`, `VetRecord`
+2. **Spring AI adapter** — Spring-AI-aware tool definitions and `ChatClient` wiring
+3. **Staff chat web controller** — Thymeleaf form, `@SessionScope` non-persistent history, navbar integration
+
+**Package:** `org.springframework.samples.petclinic.assistant` (cohesive, decoupled from `owner`/`vet`/`vet` packages)
+
+**Residual risks (explicitly out of scope for workshop slice):**
+- Authentication, authorization, privacy, auditing
+- Prompt-injection hardening, production observability
+- Persistent conversations, scheduling, writes, medical advice safety at inference time
+
+---
+
+## Accepted Technical Decisions (Issues #9–#12)
+
+### DEC-T9-001: Spring AI 2.0.1 via OpenAI-compatible starter
+
+**Date:** 2026-08-25
+**Issue:** #9
+**Author:** Trinity
+**Status:** Accepted
+
+**Decision:** Added `spring-ai-starter-model-openai:2.0.1` directly (no BOM). Used the OpenAI-compatible starter because it supports Azure OpenAI/Foundry endpoints via `spring.ai.openai.base-url` without requiring the Azure-specific starter.
+
+**Trade-off:** Azure-specific starter (`spring-ai-starter-model-azure-openai`) provides first-class Azure credential support via managed identity; the OpenAI-compatible path uses API-key auth only. This matches the workshop default (API key from environment variable) and avoids adding the azure-openai-sdk transitive dependency.
+
+**Residual risk:** Production deployments should migrate to managed identity via the Azure-specific starter.
+
+---
+
+### DEC-T9-002: Session-scoped `AssistantChatSession` for conversation history
+
+**Date:** 2026-08-25
+**Issue:** #9
+**Author:** Trinity
+**Status:** Accepted
+
+**Decision:** Used `@SessionScope` on `AssistantChatSession` to keep temporary conversation history in the HTTP session. History is lost on session expiry. No database, cache, or persistent storage is introduced.
+
+**Trade-off:** In-memory session scope cannot survive server restart or be shared across replicas. Acceptable for the workshop slice; out-of-scope for production.
+
+---
+
+### DEC-T9-003: Framework-agnostic read-only query boundary
+
+**Date:** 2026-08-25
+**Issue:** #9
+**Author:** Trinity
+**Status:** Accepted
+
+**Decision:** Created `ClinicQueryService` using purpose-built records (`OwnerRecord`, `PetRecord`, `VisitRecord`, `VetRecord`) rather than exposing JPA entities to the assistant layer. No Spring Data repository is called with write methods.
+
+**Rationale:** Aligns with the safety envelope: "framework-agnostic read-only query boundary with purpose-built records rather than repositories or JPA entities".
+
+---
+
+### DEC-T9-005: Safe declines enforced by system prompt, not application code
+
+**Date:** 2026-08-25
+**Issue:** #9
+**Author:** Trinity
+**Status:** Accepted
+
+**Decision:** Decline responses for mutation, veterinary advice, and out-of-scope requests are enforced via the system prompt in `SystemPrompt.TEXT`. The controller does not apply keyword filtering or guard clauses to short-circuit requests.
+
+**Rationale:** System-prompt enforcement is the correct Spring AI pattern; application-code filtering would be a weaker and more brittle second layer. The system prompt is tested directly in `SystemPromptTests` to confirm all three decline categories are covered.
+
+**Residual risk:** Prompt injection could bypass system-prompt instructions. Production hardening is explicitly out of scope for this workshop slice.
+
+---
+
+### DEC-010-A: Extend `OwnerRepository` with contains-match queries rather than a new repository
+
+**Date:** 2026-08-25
+**Issue:** #10
+**Author:** Trinity
+**Status:** Accepted
+
+**Decision:** Added two `@Query`-annotated JPQL methods to `OwnerRepository`:
+- `findByLastNameContainingIgnoreCase(String lastName)` — `LOWER(o.lastName) LIKE LOWER('%...%')`, with `LEFT JOIN FETCH o.pets` to avoid N+1 and a `DISTINCT` to prevent duplicate owners when multiple pets match.
+- `findByPetNameContainingIgnoreCase(String petName)` — same pattern joining pets.
+
+**Alternatives considered:**
+- A separate `PetRepository` — rejected; pets are accessed through `Owner` in the existing domain model. Introducing a new repository would cross the established aggregate boundary.
+- Spring Data derived query `findByLastNameContainingIgnoreCase` — JPQL explicit query gives full control over the fetch strategy.
+
+**Trade-off:** JPQL `DISTINCT + LEFT JOIN FETCH` is reliable for H2 and standard SQL dialects but generates a slightly wider SQL. Acceptable for the read-only assistant boundary.
+
+---
+
+### DEC-010-B: `PetRecord` gains an `ownerName` field
+
+**Date:** 2026-08-25
+**Issue:** #10
+**Author:** Trinity
+**Status:** Accepted
+
+**Decision:** Added `String ownerName` to `PetRecord`. When built from an `OwnerRecord` context (i.e., via `toOwnerRecord`), `ownerName` is populated as `firstName + " " + lastName`. This keeps the record self-contained without referencing the `Owner` entity.
+
+**Trade-off:** All existing call sites that construct `PetRecord` must pass `ownerName`. This is a compile-time break that forced updating `toOwnerRecord` — acceptable because the `assistant` package is internal and the change is bounded.
+
+---
+
+### DEC-010-C: Tool wiring via `@Tool` on `AssistantChatSession` itself
+
+**Date:** 2026-08-25
+**Issue:** #10
+**Author:** Trinity
+**Status:** Accepted
+
+**Decision:** Annotated `findOwnersByLastName`, `findPetsByName`, and `listVets` directly on `AssistantChatSession` with `@Tool`. Passed `this` to `.tools(this)`. This keeps the tool definitions co-located with the session boundary, avoids extra classes, and reuses the already-injected `ClinicQueryService`.
+
+**Safety:** All tool methods are read-only delegations to `ClinicQueryService`. No write tools were added. The system prompt retains its full mutation/medical-advice decline instructions.
+
+---
+
+### DEC-010-D: `@DataJpaTest + @Import(ClinicQueryService.class)` for query boundary tests
+
+**Date:** 2026-08-25
+**Issue:** #10
+**Author:** Trinity
+**Status:** Accepted
+
+**Decision:** Used `@DataJpaTest` (from `org.springframework.boot.data.jpa.test.autoconfigure`) with `@Import(ClinicQueryService.class)` to get a narrow JPA slice. This imports only the repository, entity scan, and the query service — no web layer, no AI wiring.
+
+**Trade-off:** `@DataJpaTest` does not load `@SpringBootApplication` auto-configuration for AI. That is intentional — tests must not depend on a live Azure endpoint.
+
+---
+
+### DEC-T11-001: Result cap set to 5 (`MAX_CANDIDATES` constant)
+
+**Date:** 2026-08-25
+**Issue:** #11
+**Author:** Trinity
+**Status:** Accepted
+
+**Decision:** Reduce the result limit to 5 in `ClinicQueryService` and expose it as a package-visible constant `MAX_CANDIDATES` so tests can reference the same value.
+
+**Rationale:** The acceptance criterion targets "about five" candidates. Five is small enough to be readable in a chat transcript and large enough to cover realistic partial-name collisions in a clinic of typical size. The constant avoids a magic number in both production and test code.
+
+**Trade-off:** A clinic with many owners sharing a surname fragment (e.g. "son") will not show all matches. Staff must narrow the query. This is the intended UX.
+
+---
+
+### DEC-T11-002: Ambiguity and absence instructions belong in the system prompt
+
+**Date:** 2026-08-25
+**Issue:** #11
+**Author:** Trinity
+**Status:** Accepted
+
+**Decision:** Added explicit `AMBIGUOUS RESULTS` and `ABSENT RESULTS` sections to `SystemPrompt.TEXT` rather than embedding instructions in the `@Tool` description alone.
+
+**Rationale:** The system prompt governs the model's global behavior policy. Tool descriptions are scoped to invocation context. Placing policy in both layers gives belt-and-suspenders coverage: the model sees the rule before the tool call and again at invocation time.
+
+**Trade-off:** The system prompt grows longer. Accepted — it remains within a single screen and the clarity gain outweighs the token cost.
+
+---
+
+### DEC-T11-004: Tests cover ambiguity cap, identifying-detail presence, absence, and non-guessing
+
+**Date:** 2026-08-25
+**Issue:** #11
+**Author:** Trinity
+**Status:** Accepted
+
+**Decision:** New tests added to `ClinicQueryServiceTests` as Seams 10–12:
+- Seam 10: `hasSizeLessThanOrEqualTo(MAX_CANDIDATES)` for owners and pets; multi-match includes first name, last name, city, telephone.
+- Seam 11: empty result for absent names returns genuinely empty list.
+- Seam 12: every returned record matches the searched fragment — no invented entries.
+
+**Rationale:** These are the narrowest slice that provides evidence for each acceptance criterion. They test the query boundary directly, not the LLM response, keeping them deterministic and fast.
+
+---
+
+### DEC-S12-001: Integration evidence via `@SpringBootTest` + deep-stub `ChatClient.Builder`
+
+**Date:** 2026-08-25
+**Issue:** #12
+**Author:** Switch
+**Status:** Accepted
+
+**Decision:** Implemented 6-prompt evidence fixture using `@SpringBootTest` + a `@TestConfiguration`-supplied deep-stub `ChatClient.Builder` marked `@Primary`. The fixture exercises the full HTTP, controller, chat session, query service, and H2 stack; only the AI call is replaced.
+
+**Rationale:** This is deterministic and does not require live Azure. The stub responses are canned strings that do not reflect real model output; live model wording and alignment remain explicit residual risks documented in the test class Javadoc.
+
+---
+
+### DEC-S12-002: Wording-tolerant `assertContainsAny` helper in evidence test class
+
+**Date:** 2026-08-25
+**Issue:** #12
+**Author:** Switch
+**Status:** Accepted
+
+**Decision:** All assertions on reply content use `assertContainsAny(reply, candidates…)` — a static helper that passes if any candidate phrase appears case-insensitively in the response. Negative assertions (`doesNotContain`) are used for contract boundaries (no mutation claimed, no fabricated name, no medical specifics).
+
+**Trade-off:** Wording-tolerant assertions could pass even if the reply is partially wrong. The boundary is: structural contracts (record shape, read-only methods, view name, model attributes) are asserted exactly; prose content is asserted wording-tolerantly.
+
+---
+
+### DEC-S12-003: H2 seed "Davis" ambiguity for fixture; no seed changes
+
+**Date:** 2026-08-25
+**Issue:** #12
+**Author:** Switch
+**Status:** Accepted
+
+**Decision:** Use "Davis" as the ambiguity fixture prompt (Betty Davis + Harold Davis in H2 seed). No seed modifications needed.
+
+---
+
+### DEC-S12-004: `@SessionScope` isolation via explicit `MockHttpSession` per test
+
+**Date:** 2026-08-25
+**Issue:** #12
+**Author:** Switch
+**Status:** Accepted
+
+**Decision:** Each test that performs a POST creates a new `MockHttpSession` and passes it to `mockMvc.perform(...)`. This ensures a fresh `AssistantChatSession` is constructed for each test and avoids cross-test state pollution.
+
+---
+
+### DEC-I18N: i18n sync discipline for new message keys
+
+**Date:** 2026-08-25
+**Issue:** #12 (i18n integration fix)
+**Author:** Switch
+**Status:** Accepted
+
+**Decision:** Any team member adding new keys to `messages.properties` must add translated (or at minimum placeholder) entries to all nine locale files in the same change. This is a test-enforced convention, not optional.
+
+**Rationale:** Partial translations cause a hard test failure (`I18nPropertiesSyncTest`) that blocks the entire suite. The sync test exists precisely to catch this — it is not noise.
+
+---
+
+### DEC-CONC-TEST: Integration tests must use an explicit HTTP client factory
+
+**Date:** 2026-08-25
+**Issue:** #12 (concurrency test fix)
+**Author:** Switch (diagnosed by Morpheus)
+**Status:** Accepted
+
+**Decision:** Integration tests that use `RestTemplate` against a live embedded server MUST construct it explicitly using `new RestTemplate(new SimpleClientHttpRequestFactory())` rather than autowiring `RestTemplateBuilder`.
+
+**Rationale:** `RestTemplateBuilder`'s default request factory changes based on classpath presence (HttpClient 5, Reactor, etc.). This is appropriate for production code but makes tests fragile across dependency changes. `SimpleClientHttpRequestFactory` (JDK `HttpURLConnection`) has stable, well-understood redirect semantics and no transitive coupling to reactive stacks.
+
+**Scope:** Applies to all `@SpringBootTest(webEnvironment = RANDOM_PORT)` tests in this repository that make HTTP calls via `RestTemplate`.
+
+---
+
+## Post-Review Fixes (Morpheus, Accepted)
+
+### DEC-F1: Pet-name cap applied after cross-owner flatten
+
+**Date:** 2026-08-25
+**Issue:** #11 (post-review)
+**Author:** Morpheus
+**Status:** Accepted (fix applied)
+
+**Defect:** `limit(MAX_CANDIDATES)` was applied to *owners* before flattening to pets. A single owner with more than 5 matching pets could yield more than 5 pet records, violating the "capped at MAX_CANDIDATES so ambiguous responses stay readable" contract.
+
+**Fix:** Moved `.limit(MAX_CANDIDATES)` to after the pet flatten/map so it constrains the final `PetRecord` stream. Owner details on each record are preserved.
+
+**Evidence:** `ClinicQueryServiceTests` passes with cap verification and partial-match tests (22/22).
+
+---
+
+### DEC-F2: Activity trace grounded in real execution, not keyword inference
+
+**Date:** 2026-08-25
+**Issue:** #9 (post-review fix)
+**Author:** Morpheus
+**Status:** Accepted (fix applied)
+
+**Defect:** The trace was inferred from user/reply wording (e.g. "looked up owner records", "request declined") even when **no tool ran**. This asserts a data lookup that never happened, conflicting with the read-only evidence rule (never substitute a success-shaped/confident inference).
+
+**Fix:** Trace is now grounded in real execution. Each `@Tool` method records a `ToolInvocation(kind, resultCount)` into a per-turn list that is cleared at the start of every turn. `buildTrace` reports:
+  - call failure → "Assistant service call failed — no clinic data was retrieved.";
+  - no tool invoked → "Answered without querying clinic data; no lookup tool was invoked.";
+  - otherwise → per-tool lines with the actual kind and match count.
+  - A concise, non-blank trace is produced for **every** response.
+
+**Evidence:** All `activityTrace` non-blank assertions pass. Two evidence assertions (F5, F6) updated to verify the honest trace (a decline runs no lookup tool), which is the correct evidence for a decline.
+
+---
+
+### DEC-F3: `OwnerRepository` Javadocs corrected
+
+**Date:** 2026-08-25
+**Issue:** #10 (post-review)
+**Author:** Morpheus
+**Status:** Accepted (fix applied)
+
+**Defect:** Javadocs on `findByLastNameContainingIgnoreCase` and `findByPetNameContainingIgnoreCase` claimed "capped at 20 results". No such cap exists in the query; the service caps at `MAX_CANDIDATES` (5).
+
+**Fix:** Corrected both Javadocs to state the repository returns all matches and that result-count capping is applied by the calling service (`ClinicQueryService.MAX_CANDIDATES`).
+
+---
+
+## Verification & Completion
+
+**Full test suite:** `./mvnw test` PASSED with all review fixes applied.
+- `ClinicQueryServiceTests`: 22/22 ✓
+- `ClinicAssistantEvidenceTests`: 17/17 ✓
+- `AssistantControllerTests`: 6/6 ✓
+- `SystemPromptTests`: 6/6 ✓
+- `PetClinicConcurrencyTests`: stable ✓
+- All other legacy tests: ✓
+
+**Review gates:** All findings addressed in-scope. Residual risks (auth, authz, privacy, auditing, prompt-injection, production observability, persistent conversations, medical advice at inference time) documented as explicitly out of scope for the workshop slice.
+
+---
+
+## Governance
+
+- All meaningful changes require team consensus
+- Document architectural decisions here
+- Keep history focused on work, decisions focused on direction
+- Inbox decisions are merged to this file after completion and independent review

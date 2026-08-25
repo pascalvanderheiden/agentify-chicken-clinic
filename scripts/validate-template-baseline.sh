@@ -23,11 +23,20 @@ contains_clinic_assistant_ui_marker() {
   grep -Eq 'clinic-assistant|clinicAssistant' "$file"
 }
 
-contains_spring_ai_application_property() {
+contains_hardcoded_spring_ai_secret() {
   local file="$1"
 
   test -f "$file" || return 1
-  grep -Fq 'spring.ai.' "$file"
+
+  # The Clinic Assistant requires environment-driven Spring AI configuration
+  # (`spring.ai.*` keys whose values are `${ENV_VAR:default}` placeholders).
+  # Those are safe to ship. The meaningful guard is against a literal secret
+  # being committed: any credential-bearing `spring.ai.*` property (api-key,
+  # secret, password, token) assigned a value that is not a `${...}`
+  # placeholder is treated as a leaked hardcoded secret.
+  grep -Eiq \
+    '^[[:space:]]*#?[[:space:]]*spring\.ai\.[A-Za-z0-9._-]*(api-key|secret|password|token)[[:space:]]*=[[:space:]]*[^$[:space:]]' \
+    "$file"
 }
 
 require_absent_reference_only_directory() {
@@ -242,9 +251,9 @@ require_absent_reference_only_file "scripts/test-azure-reference-smoke.sh"
   || fail "Clinic Assistant UI marker is present in src/main/resources/messages/messages.properties"
 ! contains_clinic_assistant_ui_marker "$root/src/main/scss/petclinic.scss" \
   || fail "Clinic Assistant UI marker is present in src/main/scss/petclinic.scss"
-! contains_spring_ai_application_property \
+! contains_hardcoded_spring_ai_secret \
   "$root/src/main/resources/application.properties" \
-  || fail "Spring AI application property is present in src/main/resources/application.properties"
+  || fail "hardcoded Spring AI secret is present in src/main/resources/application.properties"
 
 require_absent_secret_bearing_files
 

@@ -373,12 +373,24 @@ expect_file_append_failure \
 expect_file_append_failure \
   "src/main/resources/application.properties" \
   "spring.ai.openai.api-key=test-key" \
-  "Spring AI application property is present in src/main/resources/application.properties"
+  "hardcoded Spring AI secret is present in src/main/resources/application.properties"
 
 expect_file_append_failure \
   "src/main/resources/application.properties" \
   "# spring.ai.openai.api-key=test-key" \
-  "Spring AI application property is present in src/main/resources/application.properties"
+  "hardcoded Spring AI secret is present in src/main/resources/application.properties"
+
+# Required, environment-driven Spring AI configuration is allowed: keys whose
+# values are ${ENV_VAR:default} placeholders (including credential keys) do not
+# leak a secret and must keep the baseline structurally clean.
+printf '%s\n' \
+  'spring.ai.openai.base-url=${AZURE_OPENAI_ENDPOINT:https://models.inference.ai.azure.com}' \
+  'spring.ai.openai.api-key=${AZURE_OPENAI_API_KEY:changeme}' \
+  'spring.ai.openai.chat.options.model=${AZURE_OPENAI_MODEL:gpt-4o-mini}' \
+  >>"$fixture/src/main/resources/application.properties"
+expect_clean
+copy_clean_baseline_file "src/main/resources/application.properties"
+expect_clean
 
 rm "$fixture/mvnw"
 expect_failure "missing Maven wrapper"

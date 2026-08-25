@@ -9530,3 +9530,106 @@ strong {
     margin-bottom: 30px; } }
 
 /*# sourceMappingURL=../../../../../../target/petclinic.css.map */
+
+/* Percy parrot decorators — emoji via CSS ::before to satisfy i18n policy */
+.percy-parrot-icon,
+.percy-avatar-icon {
+  display: inline-block;
+  font-size: 1.5em;
+  line-height: 1; }
+
+.percy-parrot-icon::before {
+  content: "\1F99C";
+  animation: percy-bob 2s ease-in-out infinite;
+  display: inline-block; }
+
+.percy-avatar-icon::before {
+  content: "\1F99C"; }
+
+.assistant-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px; }
+
+@keyframes percy-bob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%       { transform: translateY(-5px) rotate(-8deg); } }
+
+/* Intro greeting bubble */
+.assistant-intro-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 24px; }
+
+.percy-avatar {
+  font-size: 1.5em;
+  flex-shrink: 0; }
+
+.percy-intro-bubble {
+  background: #eafaf1;
+  border: 2px dashed #6fcf97;
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-style: italic;
+  max-width: 78%; }
+
+/* Conversation turns */
+.assistant-turn {
+  margin-bottom: 20px; }
+
+/* Staff (user) bubble — right-aligned */
+.staff-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 6px; }
+
+.staff-bubble {
+  background: #4f8cff;
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 16px 16px 4px 16px;
+  max-width: 75%;
+  word-break: break-word; }
+
+/* Percy (assistant) bubble — left-aligned */
+.assistant-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 78%; }
+
+.percy-bubble {
+  background: #ffffff;
+  border: 2px solid #ffd166;
+  padding: 10px 14px;
+  border-radius: 16px 16px 16px 4px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  word-break: break-word;
+  margin-bottom: 6px; }
+
+/* Activity trace */
+.percy-trace {
+  font-size: 0.8em;
+  color: #7a6a00;
+  padding: 5px 10px;
+  background: #fffbe6;
+  border-radius: 8px;
+  border: 1px dashed #ffd166; }
+
+/* Chat input row */
+.assistant-form {
+  margin-top: 24px; }
+
+.assistant-input {
+  border-radius: 20px 0 0 20px !important; }
+
+.assistant-send {
+  border-radius: 0 20px 20px 0 !important; }
+
+@media (max-width: 576px) {
+  .staff-bubble,
+  .assistant-row {
+    max-width: 95%; }
+  .percy-intro-bubble {
+    max-width: 90%; } }

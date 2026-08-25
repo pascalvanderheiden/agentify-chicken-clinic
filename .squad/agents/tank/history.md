@@ -78,3 +78,17 @@
 **Residual risks:** Per-turn pop-in animation omitted (requires JS); Percy visual degrades gracefully if CSS fails to load (decorative only).
 
 **Files owned:** `chat.html`, `petclinic.css`, `messages*.properties`
+
+---
+
+## 2026-08-25 — azd auth login noninteractive fix
+
+**Move:** Patched `.github/workflows/deploy-azure.yml` authentication step.
+
+**Root cause:** `azd auth login --federated-credential-provider github` without explicit identity flags attempts interactive browser login when the OIDC token ambient context is insufficient alone.
+
+**Fix:** Added `--client-id "$AZURE_CLIENT_ID"` and `--tenant-id "$AZURE_TENANT_ID"` and `--no-prompt` to the step. Both env vars are already in the job-level `env:` block from secrets, so no new secrets needed and OIDC permissions unchanged.
+
+**Validation:** YAML parsed cleanly with `yaml.safe_load`; `git diff` confirmed single surgical change.
+
+**Residual risks:** If `AZURE_CLIENT_ID` or `AZURE_TENANT_ID` secrets are absent from the repo, the step will still fail — that is a repo-configuration concern, not a workflow code concern.

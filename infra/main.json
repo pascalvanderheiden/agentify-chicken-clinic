@@ -1,0 +1,342 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.45.15.27210",
+      "templateHash": "12412409922605472608"
+    }
+  },
+  "parameters": {
+    "environmentName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "location": {
+      "type": "string"
+    },
+    "modelName": {
+      "type": "string",
+      "defaultValue": "gpt-5.4-mini"
+    },
+    "modelVersion": {
+      "type": "string",
+      "defaultValue": "2026-03-17"
+    },
+    "modelDeploymentName": {
+      "type": "string",
+      "defaultValue": "gpt-5-4-mini"
+    },
+    "modelDeploymentSku": {
+      "type": "string",
+      "defaultValue": "GlobalStandard"
+    },
+    "modelDeploymentCapacity": {
+      "type": "int",
+      "defaultValue": 10,
+      "minValue": 1
+    },
+    "tags": {
+      "type": "object",
+      "defaultValue": {
+        "azd-env-name": "[parameters('environmentName')]",
+        "purpose": "agentic-engineering-workshop"
+      }
+    }
+  },
+  "variables": {
+    "resourceGroupName": "[format('rg-{0}', parameters('environmentName'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2024-03-01",
+      "name": "[variables('resourceGroupName')]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]"
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "workshop-resources",
+      "resourceGroup": "[variables('resourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "environmentName": {
+            "value": "[parameters('environmentName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "modelName": {
+            "value": "[parameters('modelName')]"
+          },
+          "modelVersion": {
+            "value": "[parameters('modelVersion')]"
+          },
+          "modelDeploymentName": {
+            "value": "[parameters('modelDeploymentName')]"
+          },
+          "modelDeploymentSku": {
+            "value": "[parameters('modelDeploymentSku')]"
+          },
+          "modelDeploymentCapacity": {
+            "value": "[parameters('modelDeploymentCapacity')]"
+          },
+          "tags": {
+            "value": "[parameters('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.45.15.27210",
+              "templateHash": "4103558324626555249"
+            }
+          },
+          "parameters": {
+            "environmentName": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string"
+            },
+            "modelName": {
+              "type": "string"
+            },
+            "modelVersion": {
+              "type": "string"
+            },
+            "modelDeploymentName": {
+              "type": "string"
+            },
+            "modelDeploymentSku": {
+              "type": "string"
+            },
+            "modelDeploymentCapacity": {
+              "type": "int"
+            },
+            "tags": {
+              "type": "object"
+            }
+          },
+          "variables": {
+            "token": "[uniqueString(resourceGroup().id, parameters('environmentName'))]",
+            "appServicePlanName": "[format('plan-{0}', variables('token'))]",
+            "webAppName": "[format('workshop-web-{0}', variables('token'))]",
+            "foundryName": "[format('workshop-foundry-{0}', variables('token'))]",
+            "foundryUserRoleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '53ca6127-db72-4b80-b1b0-d745d6d5456d')]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Web/serverfarms",
+              "apiVersion": "2024-11-01",
+              "name": "[variables('appServicePlanName')]",
+              "location": "[parameters('location')]",
+              "kind": "linux",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "B1",
+                "tier": "Basic",
+                "size": "B1",
+                "capacity": 1
+              },
+              "properties": {
+                "reserved": true,
+                "asyncScalingEnabled": true
+              }
+            },
+            {
+              "type": "Microsoft.CognitiveServices/accounts",
+              "apiVersion": "2025-06-01",
+              "name": "[variables('foundryName')]",
+              "location": "[parameters('location')]",
+              "kind": "AIServices",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "S0"
+              },
+              "properties": {
+                "allowProjectManagement": true,
+                "customSubDomainName": "[variables('foundryName')]",
+                "disableLocalAuth": true,
+                "publicNetworkAccess": "Enabled"
+              }
+            },
+            {
+              "type": "Microsoft.CognitiveServices/accounts/deployments",
+              "apiVersion": "2025-06-01",
+              "name": "[format('{0}/{1}', variables('foundryName'), parameters('modelDeploymentName'))]",
+              "sku": {
+                "name": "[parameters('modelDeploymentSku')]",
+                "capacity": "[parameters('modelDeploymentCapacity')]"
+              },
+              "properties": {
+                "model": {
+                  "format": "OpenAI",
+                  "name": "[parameters('modelName')]",
+                  "version": "[parameters('modelVersion')]"
+                },
+                "versionUpgradeOption": "NoAutoUpgrade"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.CognitiveServices/accounts', variables('foundryName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Web/sites",
+              "apiVersion": "2024-11-01",
+              "name": "[variables('webAppName')]",
+              "location": "[parameters('location')]",
+              "kind": "app,linux",
+              "tags": "[union(parameters('tags'), createObject('azd-service-name', 'web'))]",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]",
+                "httpsOnly": true,
+                "siteConfig": {
+                  "alwaysOn": true,
+                  "ftpsState": "Disabled",
+                  "http20Enabled": true,
+                  "linuxFxVersion": "JAVA|21-java21",
+                  "minTlsVersion": "1.2",
+                  "appSettings": [
+                    {
+                      "name": "AZURE_OPENAI_ENDPOINT",
+                      "value": "[format('https://{0}.openai.azure.com', variables('foundryName'))]"
+                    },
+                    {
+                      "name": "AZURE_OPENAI_MICROSOFT_FOUNDRY",
+                      "value": "true"
+                    },
+                    {
+                      "name": "AZURE_OPENAI_DEPLOYMENT",
+                      "value": "[parameters('modelDeploymentName')]"
+                    },
+                    {
+                      "name": "AZURE_OPENAI_MODEL",
+                      "value": "[parameters('modelName')]"
+                    },
+                    {
+                      "name": "JAVA_OPTS",
+                      "value": "-Xms256m -Xmx1024m"
+                    },
+                    {
+                      "name": "WEBSITES_PORT",
+                      "value": "8080"
+                    }
+                  ]
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]",
+                "[resourceId('Microsoft.CognitiveServices/accounts', variables('foundryName'))]",
+                "[resourceId('Microsoft.CognitiveServices/accounts/deployments', variables('foundryName'), parameters('modelDeploymentName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.CognitiveServices/accounts', variables('foundryName'))]",
+              "name": "[guid(resourceId('Microsoft.CognitiveServices/accounts', variables('foundryName')), resourceId('Microsoft.Web/sites', variables('webAppName')), variables('foundryUserRoleDefinitionId'))]",
+              "properties": {
+                "principalId": "[reference(resourceId('Microsoft.Web/sites', variables('webAppName')), '2024-11-01', 'full').identity.principalId]",
+                "principalType": "ServicePrincipal",
+                "roleDefinitionId": "[variables('foundryUserRoleDefinitionId')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.CognitiveServices/accounts', variables('foundryName'))]",
+                "[resourceId('Microsoft.Web/sites', variables('webAppName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "webAppName": {
+              "type": "string",
+              "value": "[variables('webAppName')]"
+            },
+            "webAppUrl": {
+              "type": "string",
+              "value": "[format('https://{0}', reference(resourceId('Microsoft.Web/sites', variables('webAppName')), '2024-11-01').defaultHostName)]"
+            },
+            "foundryName": {
+              "type": "string",
+              "value": "[variables('foundryName')]"
+            },
+            "openAiEndpoint": {
+              "type": "string",
+              "value": "[format('https://{0}.openai.azure.com', variables('foundryName'))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "AZURE_LOCATION": {
+      "type": "string",
+      "value": "[parameters('location')]"
+    },
+    "AZURE_RESOURCE_GROUP_NAME": {
+      "type": "string",
+      "value": "[variables('resourceGroupName')]"
+    },
+    "AZURE_SUBSCRIPTION_ID": {
+      "type": "string",
+      "value": "[subscription().subscriptionId]"
+    },
+    "AZURE_TENANT_ID": {
+      "type": "string",
+      "value": "[tenant().tenantId]"
+    },
+    "SERVICE_WEB_NAME": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'workshop-resources'), '2025-04-01').outputs.webAppName.value]"
+    },
+    "WEB_APP_URL": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'workshop-resources'), '2025-04-01').outputs.webAppUrl.value]"
+    },
+    "AZURE_OPENAI_ACCOUNT_NAME": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'workshop-resources'), '2025-04-01').outputs.foundryName.value]"
+    },
+    "AZURE_OPENAI_ENDPOINT": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'workshop-resources'), '2025-04-01').outputs.openAiEndpoint.value]"
+    },
+    "AZURE_OPENAI_DEPLOYMENT": {
+      "type": "string",
+      "value": "[parameters('modelDeploymentName')]"
+    },
+    "AZURE_OPENAI_MODEL": {
+      "type": "string",
+      "value": "[parameters('modelName')]"
+    },
+    "AZURE_OPENAI_MODEL_VERSION": {
+      "type": "string",
+      "value": "[parameters('modelVersion')]"
+    },
+    "AZURE_OPENAI_DEPLOYMENT_SKU": {
+      "type": "string",
+      "value": "[parameters('modelDeploymentSku')]"
+    },
+    "AZURE_OPENAI_DEPLOYMENT_CAPACITY": {
+      "type": "int",
+      "value": "[parameters('modelDeploymentCapacity')]"
+    }
+  }
+}

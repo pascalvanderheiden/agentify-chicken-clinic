@@ -90,9 +90,12 @@ make_fixture() {
     '[{"name":{"localizedValue":"One Thousand Tokens Per Minute - gpt-5.4-mini - GlobalStandard"},"currentValue":"0.0","limit":"1000.0"}]' \
     cognitiveservices usage list --location swedencentral --output json
   ((call_number += 1))
+  add_call "$fixture_dir" "$call_number" az 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' \
+    ad signed-in-user show --query id --output tsv
+  ((call_number += 1))
   add_call "$fixture_dir" "$call_number" az \
     '[{"roleDefinitionName":"Owner","scope":"/subscriptions/11111111-2222-3333-4444-555555555555"}]' \
-    role assignment list --assignee user@example.com \
+    role assignment list --assignee aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee \
     --scope "/subscriptions/$subscription_id" --include-inherited --include-groups \
     --output json
 }
@@ -156,11 +159,11 @@ grep -Fq 'subscription: 11111111...5555' "$scratch/success/stdout"
 ! grep -Fq "$subscription_id" "$scratch/success/stdout"
 [[ ! -s "$scratch/success/stderr" ]] ||
   fail_test "success emitted stderr: $(cat "$scratch/success/stderr")"
-[[ "$(wc -l <"$scratch/success/commands.log")" -eq 12 ]]
+[[ "$(wc -l <"$scratch/success/commands.log")" -eq 13 ]]
 
 make_fixture success-with-azd-subscription azd
 run_case success-with-azd-subscription 0 '' unset
-[[ "$(wc -l <"$scratch/success-with-azd-subscription/commands.log")" -eq 13 ]]
+[[ "$(wc -l <"$scratch/success-with-azd-subscription/commands.log")" -eq 14 ]]
 
 make_fixture missing-azd
 rm "$scratch/missing-azd/bin/azd"
@@ -273,39 +276,39 @@ run_case non-integral-model-quota 1 \
   'ERROR: model quota was not reported for gpt-5.4-mini GlobalStandard in Sweden Central'
 
 make_fixture insufficient-rbac
-replace_stdout insufficient-rbac 12 az \
+replace_stdout insufficient-rbac 13 az \
   '[{"roleDefinitionName":"Contributor","scope":"/subscriptions/11111111-2222-3333-4444-555555555555"}]'
 run_case insufficient-rbac 1 \
   'ERROR: deployment authority requires Owner, or Contributor plus User Access Administrator or Role Based Access Control Administrator'
 
 make_fixture contributor-user-access-admin
-replace_stdout contributor-user-access-admin 12 az \
+replace_stdout contributor-user-access-admin 13 az \
   '[{"roleDefinitionName":"Contributor"},{"roleDefinitionName":"User Access Administrator","condition":""}]'
 run_case contributor-user-access-admin 0
 
 make_fixture contributor-rbac-admin
-replace_stdout contributor-rbac-admin 12 az \
+replace_stdout contributor-rbac-admin 13 az \
   '[{"roleDefinitionName":"Contributor"},{"roleDefinitionName":"Role Based Access Control Administrator"}]'
 run_case contributor-rbac-admin 0
 
 make_fixture group-owner
-replace_stdout group-owner 12 az \
+replace_stdout group-owner 13 az \
   '[{"roleDefinitionName":"Owner","principalType":"Group"}]'
 run_case group-owner 0
 
 make_fixture group-contributor-user-access-admin
-replace_stdout group-contributor-user-access-admin 12 az \
+replace_stdout group-contributor-user-access-admin 13 az \
   '[{"roleDefinitionName":"Contributor","principalType":"Group"},{"roleDefinitionName":"User Access Administrator","principalType":"Group"}]'
 run_case group-contributor-user-access-admin 0
 
 make_fixture constrained-owner
-replace_stdout constrained-owner 12 az \
+replace_stdout constrained-owner 13 az \
   '[{"roleDefinitionName":"Owner","condition":"@Resource[Microsoft.Authorization/roleAssignments:RoleDefinitionId] StringEqualsIgnoreCase \u0027constrained\u0027"}]'
 run_case constrained-owner 1 \
   'ERROR: deployment authority requires Owner, or Contributor plus User Access Administrator or Role Based Access Control Administrator'
 
 make_fixture constrained-role-admin
-replace_stdout constrained-role-admin 12 az \
+replace_stdout constrained-role-admin 13 az \
   '[{"roleDefinitionName":"Contributor"},{"roleDefinitionName":"Role Based Access Control Administrator","condition":"@Request[Microsoft.Authorization/roleAssignments:RoleDefinitionId] ForAnyOfAnyValues:GuidEquals {00000000-0000-0000-0000-000000000000}"}]'
 run_case constrained-role-admin 1 \
   'ERROR: deployment authority requires Owner, or Contributor plus User Access Administrator or Role Based Access Control Administrator'

@@ -30,3 +30,17 @@ Treat stages, skills, and artifacts as adaptable risk controls, not a mandatory 
 - [Workshop Blueprint](docs/workshop-blueprint.md)
 - [Clinic Stakeholder knowledge](docs/workshop/clinic-stakeholder-knowledge.md)
 - [Repository Copilot instructions](.github/copilot-instructions.md)
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live as GitHub issues in this repo; use the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five canonical triage labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`), unchanged. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout — `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.

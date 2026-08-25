@@ -9546,6 +9546,19 @@ strong {
 .percy-avatar-icon::before {
   content: "\1F99C"; }
 
+/* Inline emoji icons for message bubbles */
+.staff-question-icon::before {
+  content: "\2753";
+  margin-right: 6px; }
+
+.percy-reply-icon::before {
+  content: "\1F99C";
+  margin-right: 6px; }
+
+.percy-trace-icon::before {
+  content: "\1F50D";
+  margin-right: 6px; }
+
 .assistant-heading {
   display: flex;
   align-items: center;
@@ -9555,67 +9568,67 @@ strong {
   0%, 100% { transform: translateY(0) rotate(0deg); }
   50%       { transform: translateY(-5px) rotate(-8deg); } }
 
-/* Intro greeting bubble */
+/* Intro greeting box — green dashed border, left-aligned, no avatar beside it */
 .assistant-intro-row {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
   margin-bottom: 24px; }
-
-.percy-avatar {
-  font-size: 1.5em;
-  flex-shrink: 0; }
 
 .percy-intro-bubble {
   background: #eafaf1;
-  border: 2px dashed #6fcf97;
-  padding: 10px 14px;
-  border-radius: 16px;
+  border: 2px dashed #27ae60;
+  padding: 12px 16px;
+  border-radius: 12px;
   font-style: italic;
-  max-width: 78%; }
+  max-width: 78%;
+  text-align: left; }
 
 /* Conversation turns */
 .assistant-turn {
   margin-bottom: 20px; }
 
-/* Staff (user) bubble — right-aligned */
+/* Staff (user) bubble — right-aligned, blue */
 .staff-row {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: 6px; }
+  margin-bottom: 8px; }
 
 .staff-bubble {
-  background: #4f8cff;
+  background: #3d82f5;
   color: #fff;
-  padding: 10px 14px;
-  border-radius: 16px 16px 4px 16px;
+  padding: 10px 16px;
+  border-radius: 20px 20px 4px 20px;
   max-width: 75%;
-  word-break: break-word; }
+  word-break: break-word;
+  display: flex;
+  align-items: center; }
 
-/* Percy (assistant) bubble — left-aligned */
+/* Percy (assistant) bubble — left-aligned, orange/tan */
 .assistant-row {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  max-width: 78%; }
+  max-width: 80%; }
 
 .percy-bubble {
-  background: #ffffff;
-  border: 2px solid #ffd166;
-  padding: 10px 14px;
-  border-radius: 16px 16px 16px 4px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  background: #fff4e0;
+  border: 1.5px solid #e8a540;
+  padding: 10px 16px;
+  border-radius: 4px 20px 20px 20px;
   word-break: break-word;
-  margin-bottom: 6px; }
+  margin-bottom: 6px;
+  display: flex;
+  align-items: flex-start; }
 
-/* Activity trace */
+/* Activity trace — beige/tan, left-aligned with 🔍 */
 .percy-trace {
   font-size: 0.8em;
-  color: #7a6a00;
-  padding: 5px 10px;
-  background: #fffbe6;
+  color: #6b5a1a;
+  padding: 5px 12px;
+  background: #f5edd8;
   border-radius: 8px;
-  border: 1px dashed #ffd166; }
+  display: flex;
+  align-items: center; }
 
 /* Chat input row */
 .assistant-form {
@@ -9632,4 +9645,4 @@ strong {
   .assistant-row {
     max-width: 95%; }
   .percy-intro-bubble {
-    max-width: 90%; } }
+    max-width: 95%; } }

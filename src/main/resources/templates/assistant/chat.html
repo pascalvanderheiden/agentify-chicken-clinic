@@ -14,8 +14,8 @@
 
     <!-- Percy intro bubble (always visible) -->
     <div class="assistant-intro-row" role="status" aria-label="Assistant introduction">
-      <span class="percy-avatar-icon" aria-hidden="true"></span>
-      <div class="percy-intro-bubble" th:text="#{assistant.intro}">Squawk! I can help you look up owner and pet info — but I cannot make changes or give medical advice.</div>
+      <span class="percy-avatar-icon visually-hidden" aria-hidden="true"></span>
+      <div class="percy-intro-bubble" th:text="#{assistant.intro}">Squawk! 👋 I can help you look up owner and pet info — but I can't make changes or give medical advice. 🩺🚫</div>
     </div>
 
     <!-- Conversation history -->
@@ -23,15 +23,15 @@
       <div th:each="turn : ${turns}" class="assistant-turn">
         <!-- User turn -->
         <div class="staff-row">
-          <div class="staff-bubble" th:text="${turn.userMessage()}">User message</div>
+          <div class="staff-bubble"><span class="staff-question-icon" aria-hidden="true"></span><span th:text="${turn.userMessage()}">User message</span></div>
         </div>
         <!-- Assistant turn -->
         <div class="assistant-row">
           <span class="percy-avatar-icon" aria-hidden="true"></span>
           <div>
-            <div class="percy-bubble" th:text="${turn.assistantReply()}">Assistant reply</div>
+            <div class="percy-bubble"><span class="percy-reply-icon" aria-hidden="true"></span><span th:text="${turn.assistantReply()}">Assistant reply</span></div>
             <div class="percy-trace" aria-label="Activity trace">
-              <span class="fa fa-info-circle me-1" aria-hidden="true"></span>
+              <span class="percy-trace-icon" aria-hidden="true"></span>
               <span th:text="${turn.activityTrace()}">Activity trace</span>
             </div>
           </div>

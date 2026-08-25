@@ -17,48 +17,35 @@ package org.springframework.samples.petclinic.assistant;
 
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 /**
  * Tests for {@link AssistantModelConfiguration} startup validation.
  *
  * <p>
- * These tests use the class directly (no Spring context) to verify that placeholder-key
- * detection is deterministic and independent of deployment credentials.
+ * These tests use the constructor directly (no Spring context) to verify that
+ * placeholder-key detection is deterministic and independent of deployment credentials.
+ * The constructor accepts the same {@code @Value}-resolved parameters that Spring would
+ * inject, so the test exercises the real configuration path without reflection.
  */
 class AssistantModelConfigurationTests {
 
 	@Test
-	void failsFastWhenApiKeyIsPlaceholder() {
-		AssistantModelConfiguration config = new AssistantModelConfiguration();
-		setField(config, "apiKey", AssistantModelConfiguration.PLACEHOLDER_KEY);
-		setField(config, "baseUrl", "https://models.inference.ai.azure.com");
-		setField(config, "model", "gpt-4o-mini");
+	void logsWarningWithoutThrowingWhenApiKeyIsPlaceholder() {
+		AssistantModelConfiguration config = new AssistantModelConfiguration("https://models.inference.ai.azure.com",
+				AssistantModelConfiguration.PLACEHOLDER_KEY, "gpt-4o-mini");
 
-		assertThatThrownBy(config::logStartupConfiguration).isInstanceOf(IllegalStateException.class)
-			.hasMessageContaining("AZURE_OPENAI_API_KEY");
+		// Should complete without throwing — misconfiguration is logged at WARN level.
+		// The application starts; assistant requests fail with honest
+		// service-unavailable behavior.
+		config.logStartupConfiguration();
 	}
 
 	@Test
 	void doesNotThrowWhenApiKeyIsConfigured() {
-		AssistantModelConfiguration config = new AssistantModelConfiguration();
-		setField(config, "apiKey", "real-key-would-go-here");
-		setField(config, "baseUrl", "https://myworkshop.openai.azure.com");
-		setField(config, "model", "gpt-4o-mini");
+		AssistantModelConfiguration config = new AssistantModelConfiguration("https://myworkshop.openai.azure.com",
+				"real-key-would-go-here", "gpt-4o-mini");
 
 		// Should complete without throwing; endpoint/model are logged at INFO level.
 		config.logStartupConfiguration();
-	}
-
-	private static void setField(Object target, String fieldName, String value) {
-		try {
-			java.lang.reflect.Field f = target.getClass().getDeclaredField(fieldName);
-			f.setAccessible(true);
-			f.set(target, value);
-		}
-		catch (ReflectiveOperationException ex) {
-			throw new RuntimeException(ex);
-		}
 	}
 
 }

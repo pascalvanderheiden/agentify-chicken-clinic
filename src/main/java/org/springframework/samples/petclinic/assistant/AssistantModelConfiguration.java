@@ -31,9 +31,11 @@ import org.springframework.context.annotation.Configuration;
  * its presence and placeholder state are checked.
  *
  * <p>
- * Fails fast with a clear message when the API key is still the placeholder value
- * {@code changeme}, so a misconfigured deployment is diagnosed at startup rather than on
- * the first staff request.
+ * When the API key is still the placeholder value {@code changeme}, a prominent warning
+ * is logged so a misconfigured deployment is diagnosed from application logs. The
+ * application is NOT prevented from starting — assistant requests will fail at call time
+ * with the honest service-unavailable/no-data behavior already handled by
+ * {@link AssistantChatSession}.
  */
 @Configuration
 class AssistantModelConfiguration {
@@ -42,24 +44,27 @@ class AssistantModelConfiguration {
 
 	static final String PLACEHOLDER_KEY = "changeme";
 
-	@Value("${spring.ai.openai.base-url}")
-	private String baseUrl;
+	private final String baseUrl;
 
-	@Value("${spring.ai.openai.api-key}")
-	private String apiKey;
+	private final String apiKey;
 
-	@Value("${spring.ai.openai.chat.options.model}")
-	private String model;
+	private final String model;
+
+	AssistantModelConfiguration(@Value("${spring.ai.openai.base-url}") String baseUrl,
+			@Value("${spring.ai.openai.api-key}") String apiKey,
+			@Value("${spring.ai.openai.chat.options.model}") String model) {
+		this.baseUrl = baseUrl;
+		this.apiKey = apiKey;
+		this.model = model;
+	}
 
 	@PostConstruct
 	void logStartupConfiguration() {
 		if (PLACEHOLDER_KEY.equals(this.apiKey)) {
-			logger.error(
-					"[Clinic Assistant] AZURE_OPENAI_API_KEY is not set — assistant service will fail every request. "
-							+ "Set the environment variable before deploying.");
-			throw new IllegalStateException(
-					"AZURE_OPENAI_API_KEY is not configured. Set the AZURE_OPENAI_API_KEY environment variable. "
-							+ "See docs/workshop/clinic-stakeholder-knowledge.md for the required Azure deployment.");
+			logger.warn("[Clinic Assistant] AZURE_OPENAI_API_KEY is not set — assistant requests will return "
+					+ "'service unavailable'. Set the AZURE_OPENAI_API_KEY environment variable. "
+					+ "See docs/workshop/clinic-stakeholder-knowledge.md for the required Azure deployment.");
+			return;
 		}
 		logger.info("[Clinic Assistant] Model configuration resolved — endpoint: {}, model: {}", this.baseUrl,
 				this.model);

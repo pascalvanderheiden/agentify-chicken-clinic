@@ -100,3 +100,20 @@
 - POST-Redirect-GET success is a 302, not a 200; test success checks must account for both branches.
 
 **Decision recorded:** `.squad/decisions/inbox/switch-concurrency-test.md`
+
+### 2026-08-25 — Issue #13: Parrot GUI deterministic tests
+
+**Observed:**
+- Tank had already updated `assistant/chat.html` with percy-* semantic class names (`percy-parrot`, `percy-avatar`, `percy-intro-bubble`, `percy-bubble`, `percy-trace`, `assistant-turn`, `staff-bubble`, `assistant-send`) before tests were written — prototype contract was unambiguous.
+- Layout.html `/oups` nav link was already commented out by Tank; N1 test confirms it stays absent.
+- `messages_en.properties` is intentionally empty (falls back to base) — no `assistant.intro` addition needed there.
+- `assistant.intro` key was already in all non-English locale files (Tank added them); base file had it too.
+- `content().string(containsString(...))` on MockMvc is the correct seam for HTML observable contract tests — avoids CSS utility brittleness while still asserting semantic structure.
+- Service-unavailable trace wording is fixed in `AssistantChatSession.buildTrace`: `"Assistant service call failed — no clinic data was retrieved."` — tests pin this exact signal.
+
+**Outcome:**
+- `AssistantParrotGuiTests.java` created: 17 tests (P1–P6, S1–S2, N1).
+- All 41 assistant tests green (17 parrot GUI + 17 evidence + 7 controller).
+- No production files modified; test-only commit.
+
+**Decisions recorded:** `.squad/decisions/inbox/switch-issue13-tests.md`

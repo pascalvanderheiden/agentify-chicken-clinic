@@ -67,3 +67,22 @@
   in the `implementation` line. No BOM is needed for a single starter.
 - `./gradlew build` runs the full test suite; a compile failure in the `assistant` package
   confirms a missing dependency immediately.
+
+### Issue #13 — Startup diagnostics, /oups nav removal, service-unavailable tests (2026-08-25)
+
+- `@Configuration` + `@PostConstruct` is the right pattern for startup validation in Spring Boot:
+  it runs after all `@Value` fields are injected and before the app accepts requests, so a
+  misconfigured deployment is detected immediately rather than on the first staff request.
+- The API key must **never** be logged — only its placeholder state. Log endpoint + model at INFO
+  for deployment evidence; log ERROR and throw `IllegalStateException` on `changeme`.
+- `@WebMvcTest` slice does NOT load `@Configuration` classes by default; the new
+  `AssistantModelConfiguration` does not affect `AssistantControllerTests` (no property override needed).
+- Plain unit tests (no Spring context) using `Field.setAccessible(true)` are sufficient for
+  deterministic placeholder-detection coverage — avoids spinning up a full context for a two-branch
+  conditional.
+- Removing a `<li>` nav entry from `layout.html` is safe to do with an explanatory comment;
+  the route (`/oups`) remains technically reachable for workshop instructors but disappears from
+  the staff navigation bar.
+- The service-unavailable test at the controller layer should assert on the `turns` model attribute
+  holding the actual failure-path `ChatTurn` (trace content included) rather than just asserting
+  `attributeExists` — tighter contract, same test cost.

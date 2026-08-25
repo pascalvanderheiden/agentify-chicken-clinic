@@ -477,6 +477,91 @@
 
 ---
 
+---
+
+## Proposed Decisions (Commit 2582ed2 — awaiting human gates)
+
+### DEC-INFRA-001: Azure CI/CD Workflow with OIDC Federated Credentials
+
+**Date:** 2026-08-25  
+**Status:** Proposed — awaiting human Commitment Gate (OIDC setup, repo config)  
+**Author:** Tank (Infra/DevOps)  
+**Reviewed by:** Morpheus (approved)
+
+**Decision:** Created `.github/workflows/deploy-azure.yml` to automate `azd up --no-prompt` on every push to `main`.
+
+**Key choices:**
+
+| Area | Choice | Rationale |
+|------|--------|-----------|
+| Auth | OIDC via `azure/login` + `azd auth login --federated-credential-provider github` | No stored secrets; least-privilege federated credential |
+| Trigger | `push: branches: [main]` only | A merged PR produces a push to main — one trigger covers both cases, no duplicates |
+| Concurrency | `group: deploy-azure-main`, `cancel-in-progress: true` | Prevents overlapping deploys; latest commit always wins |
+| Permissions | `id-token: write`, `contents: read` | Minimum required for OIDC + checkout |
+| AZD env name | `vars.AZURE_ENV_NAME` (repository variable) | The local env name `workshop-preflight-20260824125634` is not suitable for CI as-is; must be set explicitly as a repo variable |
+| Infrastructure | Unchanged — uses existing `azure.yaml` + `infra/` Bicep | Task constraint |
+
+**Deployment status:**
+- Workflow file committed and pushed (commit `2582ed2`)
+- GitHub Actions queued on `main` push; run status not yet confirmed successful
+
+**Required human setup:**
+
+1. **Azure OIDC federated credential (one-time):**
+   ```
+   az ad app create --display-name "agentify-chicken-clinic-cicd"
+   az ad sp create --id <appId>
+   # Add federated credential: issuer=https://token.actions.githubusercontent.com
+   #   subject=repo:<org>/agentify-chicken-clinic:ref:refs/heads/main
+   az role assignment create --role Contributor \
+     --assignee <appId> --scope /subscriptions/53a3db51-5b77-4e0e-bb8b-b287f39ac108
+   ```
+
+2. **GitHub repo secrets** (`Settings → Secrets and variables → Actions → Secrets`):
+   - `AZURE_CLIENT_ID` — app registration client ID (OIDC)
+   - `AZURE_TENANT_ID` — `16b3c013-d300-468d-ac64-7eda0820b6d3`
+   - `AZURE_SUBSCRIPTION_ID` — `53a3db51-5b77-4e0e-bb8b-b287f39ac108`
+
+3. **GitHub repo variables** (`Settings → Secrets and variables → Actions → Variables`):
+   - `AZURE_ENV_NAME` — recommended: `workshop` or a stable name (not the preflight timestamped name)
+   - `AZURE_LOCATION` — `swedencentral`
+
+**Residual items (non-blocking, human's call):**
+- No pre-deploy test gate; consider gating on `maven-build.yml` or adding a test step
+- `azd up` re-provisions on every push (idempotent but slower); could switch to `azd deploy` after first provision
+- RBAC scope at subscription level; can tighten to resource-group scope later
+- `environment: production` is no-op unless GH Environment protection rule is configured
+
+---
+
+### DEC-INFRA-R1: Review & Approval — Azure CI/CD Workflow
+
+**Date:** 2026-08-25  
+**Status:** Approved (no blocking issues)  
+**Author:** Morpheus (Lead)  
+**Subject:** Tank's `deploy-azure.yml` (DEC-INFRA-001)
+
+**Verdict:** No blocking correctness issues. All key requirements met.
+
+**Checked:**
+
+| Requirement | Result | Evidence |
+|---|---|---|
+| Auto-deploy on changes to `main` | ✅ | `on: push: branches: [main]` |
+| Merged PRs deploy | ✅ | A merge = one push to `main`; single trigger, no duplicate runs |
+| Uses existing AZD settings | ✅ | `azure.yaml` (bicep + `infra/`) unchanged; `azd up` reads it |
+| Secure OIDC auth | ✅ | `id-token: write`; federated `azd auth login --federated-credential-provider github`; no stored credentials |
+| Correct AZD auth semantics | ✅ | `AZURE_CLIENT_ID` + `AZURE_TENANT_ID` set at job `env`, in scope at the `azd auth login` step; OIDC token request vars provided by `id-token: write` |
+| Least privilege | ✅ | Only `id-token: write` + `contents: read` |
+| Concurrency safety | ✅ | `group: deploy-azure-main`, `cancel-in-progress: true` |
+| No secrets in repo | ✅ | Only client/tenant/subscription **IDs** (identifiers) via GH secrets; no keys/passwords |
+
+**Correctness hinge:** `azd auth login --federated-credential-provider github` depends on `AZURE_CLIENT_ID`/`AZURE_TENANT_ID` being present in the step environment and on the runner being able to mint an OIDC token. Both env vars are declared at job level (visible to the step) and `permissions.id-token: write` is granted. This is the documented, correct AZD-on-GitHub OIDC pattern.
+
+**Advisory note:** The separate `azure/login@v2` step is redundant for azd itself (azd performs its own token exchange) but harmless; keep it if any future step uses the `az` CLI.
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus

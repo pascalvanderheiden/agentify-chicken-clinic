@@ -56,3 +56,16 @@
 - **D3 — `/oups` evidence:** Confirmed `/oups` is a separate generic error demo: absent from navbar, tested as such by `AssistantParrotGuiTests` (2 assertions) and `CrashControllerIntegrationTests` (2 tests). No scope creep; no changes needed.
 - **Learning — durable:** A `@Configuration` class that throws from `@PostConstruct` on a missing optional credential blocks the entire application context, not just the feature. When the downstream call path already handles the failure honestly (service-unavailable), a prominent warn log is sufficient and preserves system availability. Constructor injection on `@Configuration` classes with `@Value` parameters is the natural testable seam — no reflection needed.
 - Full suite: 142 passed, 0 failures. Decision: `.squad/decisions/inbox/morpheus-issue13-fix.md`.
+
+### 2026-08-25 — Review: Azure CI/CD deploy workflow (Tank) — APPROVED
+
+- **Scope reviewed:** `.github/workflows/deploy-azure.yml`, `azure.yaml`, `.azure/deployment-plan.md`. No files modified; no commit.
+- **Request met:** Auto-deploy on push to `main` covers direct commits AND merged PRs (a merge is one push to main → no dupes). Uses existing AZD settings (`azure.yaml` bicep + `infra/`, unchanged). Verdict: meets the request.
+- **AZD auth semantics — the key correctness check:** `azd auth login --federated-credential-provider github` needs `AZURE_CLIENT_ID` + `AZURE_TENANT_ID` in env and an OIDC-requestable runner. Both are set at job-level `env` (visible to the step); `permissions: id-token: write` provides `ACTIONS_ID_TOKEN_REQUEST_URL/TOKEN`. Correct, documented pattern. ✅
+- **OIDC / no secrets:** No stored credentials; only client/tenant/subscription IDs (identifiers, not secrets) via GH secrets. `azure/login@v2` step is technically redundant for azd (azd does its own token exchange) but harmless — leave it. ✅
+- **Least privilege:** `id-token: write` + `contents: read` only — minimal. RBAC (Contributor at subscription scope) lives outside the repo; noted as the one place to tighten later. ✅
+- **Concurrency:** `group: deploy-azure-main`, `cancel-in-progress: true` — prevents overlapping deploys, latest wins. ✅
+- **Consistency:** Java 21 in workflow matches `azure.yaml` Maven `prepackage` package step / plan's Java 21 App Service. ✅
+- **Non-blocking observations (advisory only):** (1) no pre-deploy test gate — `azd up` ships without running the suite; (2) `azd up` re-provisions every push (idempotent but slower) — could switch to `azd deploy` post-first-provision; (3) `environment: production` is present but only gates if a GH Environment protection rule is configured. None block the request.
+- **Learning — durable:** For AZD-on-GitHub OIDC, the correctness hinge is that `AZURE_CLIENT_ID`/`AZURE_TENANT_ID` are in scope at the `azd auth login` step and `id-token: write` is granted; the `azure/login` action is optional sugar. Verified here.
+- Decision: `.squad/decisions/inbox/morpheus-azure-cicd-review.md`.

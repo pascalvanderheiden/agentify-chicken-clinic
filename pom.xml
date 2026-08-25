@@ -17,6 +17,7 @@
   <properties>
     <!-- Generic properties -->
     <java.version>17</java.version>
+    <spring-ai.version>2.0.1</spring-ai.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <!-- Important for reproducible builds. Update using e.g. ./mvnw versions:set -DnewVersion=... -->
@@ -38,6 +39,14 @@
   </properties>
 
   <dependencies>
+    <!-- Spring and Spring Boot dependencies -->
+    <!-- Spring AI -->
+    <dependency>
+      <groupId>org.springframework.ai</groupId>
+      <artifactId>spring-ai-starter-model-openai</artifactId>
+      <version>${spring-ai.version}</version>
+    </dependency>
+
     <!-- Spring and Spring Boot dependencies -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

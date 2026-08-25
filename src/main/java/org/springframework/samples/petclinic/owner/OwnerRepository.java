@@ -15,11 +15,13 @@
  */
 package org.springframework.samples.petclinic.owner;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 /**
  * Repository class for <code>Owner</code> domain objects. All method names are compliant
@@ -43,6 +45,27 @@ public interface OwnerRepository extends JpaRepository<Owner, Integer> {
 	 * found)
 	 */
 	Page<Owner> findByLastNameStartingWith(String lastName, Pageable pageable);
+
+	/**
+	 * Retrieve {@link Owner}s from the data store by partial, case-insensitive last name
+	 * (contains match). Returns all matches; result-count capping is applied by the
+	 * calling service ({@code ClinicQueryService.MAX_CANDIDATES}), not here.
+	 * @param lastName Value to search for (partial, case-insensitive)
+	 * @return a List of matching {@link Owner}s (or an empty List if none found)
+	 */
+	@Query("SELECT DISTINCT o FROM Owner o LEFT JOIN FETCH o.pets WHERE LOWER(o.lastName) LIKE LOWER(CONCAT('%', :lastName, '%'))")
+	List<Owner> findByLastNameContainingIgnoreCase(String lastName);
+
+	/**
+	 * Retrieve {@link Owner}s from the data store that have a pet whose name contains the
+	 * given fragment (case-insensitive). Returns all matches; result-count capping is
+	 * applied by the calling service ({@code ClinicQueryService.MAX_CANDIDATES}), not
+	 * here.
+	 * @param petName Value to search for (partial, case-insensitive)
+	 * @return a List of matching {@link Owner}s (or an empty List if none found)
+	 */
+	@Query("SELECT DISTINCT o FROM Owner o LEFT JOIN FETCH o.pets p WHERE LOWER(p.name) LIKE LOWER(CONCAT('%', :petName, '%'))")
+	List<Owner> findByPetNameContainingIgnoreCase(String petName);
 
 	/**
 	 * Retrieve an {@link Owner} from the data store by id.

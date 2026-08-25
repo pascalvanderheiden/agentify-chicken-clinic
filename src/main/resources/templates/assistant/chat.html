@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+
+<html th:replace="~{fragments/layout :: layout (~{::body},'assistant')}" xmlns:th="https://www.thymeleaf.org">
+
+<body>
+
+  <div class="container-fluid">
+    <h2 th:text="#{assistant.title}">Clinic Assistant</h2>
+    <p class="text-muted" th:text="#{assistant.subtitle}">Ask about owners, pets, visits, or veterinarians. Temporary
+      — history is not saved.</p>
+
+    <!-- Conversation history -->
+    <div id="conversation" class="mb-4" th:if="${not #lists.isEmpty(turns)}">
+      <div th:each="turn : ${turns}" class="mb-3">
+        <!-- User turn -->
+        <div class="d-flex justify-content-end mb-1">
+          <div class="card bg-primary text-white" style="max-width: 70%">
+            <div class="card-body py-2 px-3">
+              <p class="mb-0" th:text="${turn.userMessage()}">User message</p>
+            </div>
+          </div>
+        </div>
+        <!-- Assistant turn -->
+        <div class="d-flex justify-content-start mb-1">
+          <div class="card bg-light" style="max-width: 70%">
+            <div class="card-body py-2 px-3">
+              <p class="mb-1" th:text="${turn.assistantReply()}">Assistant reply</p>
+              <small class="text-muted fst-italic">
+                <span class="fa fa-info-circle me-1"></span>
+                <span th:text="${turn.activityTrace()}">Activity trace</span>
+              </small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty state -->
+    <div th:if="${#lists.isEmpty(turns)}" class="text-center text-muted py-4" id="empty-state">
+      <span class="fa fa-comments fa-2x mb-2"></span>
+      <p th:text="#{assistant.empty}">No messages yet. Ask a question below.</p>
+    </div>
+
+    <!-- Chat form -->
+    <form method="post" th:action="@{/assistant}" id="chat-form">
+      <div class="input-group">
+        <input type="text" name="message" class="form-control" th:placeholder="#{assistant.placeholder}"
+          autocomplete="off" required maxlength="500" id="chat-input" />
+        <button type="submit" class="btn btn-primary" th:text="#{assistant.send}">Send</button>
+      </div>
+    </form>
+  </div>
+
+</body>
+
+</html>

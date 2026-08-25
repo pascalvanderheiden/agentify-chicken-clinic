@@ -14,11 +14,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.boot.restclient.RestTemplateBuilder;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.samples.petclinic.owner.Owner;
 import org.springframework.samples.petclinic.owner.OwnerRepository;
 import org.springframework.util.LinkedMultiValueMap;
@@ -34,9 +34,6 @@ public class PetClinicConcurrencyTests {
 	@Autowired
 	private OwnerRepository ownerRepository;
 
-	@Autowired
-	private RestTemplateBuilder restTemplateBuilder;
-
 	@Test
 	public void testDuplicatePetNameRaceConditionIsBlocked() throws Exception {
 		int ownerId = 1;
@@ -50,7 +47,12 @@ public class PetClinicConcurrencyTests {
 		// Ensure duplicate pet name does not exist yet
 		assertThat(owner.getPet(duplicatePetName)).isNull();
 
-		RestTemplate template = restTemplateBuilder.baseUri("http://localhost:" + port).build();
+		// Use SimpleClientHttpRequestFactory (JDK) explicitly so that 302 redirects
+		// are followed with GET regardless of whether Spring AI / WebFlux is on the
+		// classpath (which would otherwise auto-configure ReactorClientHttpRequestFactory
+		// and re-POST the redirect, producing a 405 that breaks the assertion logic).
+		SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+		RestTemplate template = new RestTemplate(factory);
 
 		int threadCount = 2;
 		ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
@@ -77,14 +79,17 @@ public class PetClinicConcurrencyTests {
 
 					HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(map, headers);
 
-					ResponseEntity<String> response = template.postForEntity("/owners/" + ownerId + "/pets/new",
-							request, String.class);
+					ResponseEntity<String> response = template.postForEntity(
+							"http://localhost:" + port + "/owners/" + ownerId + "/pets/new", request, String.class);
 
 					String body = response.getBody();
-					// If the response page contains the duplicate validation error, it
-					// was blocked
-					if (response.getStatusCode().is2xxSuccessful()
-							&& (body == null || !body.contains("is already in use"))) {
+					// POST/Redirect/GET: a 302 means the save succeeded (the controller
+					// redirects on success). A 200 with the form re-rendered containing
+					// the duplicate error means the duplicate was blocked.
+					boolean savedSuccessfully = response.getStatusCode().value() == 302
+							|| (response.getStatusCode().is2xxSuccessful()
+									&& (body == null || !body.contains("is already in use")));
+					if (savedSuccessfully) {
 						successCount.incrementAndGet();
 					}
 					else {

@@ -1,0 +1,67 @@
+<!-- PROTOTYPE — throwaway, answers ticket #6 (Decide the staff chat and activity trace seam) -->
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Clinic Assistant — prototype</title>
+<style>
+  body { font-family: sans-serif; max-width: 700px; margin: 40px auto; }
+  .turn { margin-bottom: 20px; }
+  .staff { font-weight: bold; }
+  .assistant { background: #f2f2f2; padding: 10px; border-radius: 6px; margin-top: 4px; }
+  .trace { font-size: 0.85em; color: #555; margin-top: 6px; padding-left: 10px; border-left: 2px solid #ccc; }
+  .trace div { margin: 2px 0; }
+  form { margin-top: 30px; }
+  input[type=text] { width: 500px; padding: 6px; }
+  button { padding: 6px 12px; }
+  .intro { font-style: italic; color: #444; }
+</style>
+</head>
+<body>
+<h2>Clinic Assistant (prototype)</h2>
+
+<div class="turn">
+  <div class="assistant intro">I can help you look up owner and pet information. I can't make changes or provide medical advice.</div>
+</div>
+
+<div class="turn">
+  <div class="staff">Staff: Do you have anyone named Davis?</div>
+  <div class="assistant">
+    I found multiple matches: Betty Davis (Windsor), Harold Davis (Waterloo). Which one did you mean?
+    <div class="trace">
+      <div>🔧 owner lookup ("Davis") → 2 matches found</div>
+    </div>
+  </div>
+</div>
+
+<div class="turn">
+  <div class="staff">Staff: Betty</div>
+  <div class="assistant">
+    Betty Davis — 638 Cardinal Ave, Sun Prairie. Phone: 6085551749. Pets: Iggy (lizard, born 2020-03-04).
+    <div class="trace">
+      <div>🔧 owner lookup ("Betty Davis") → 1 match found</div>
+    </div>
+  </div>
+</div>
+
+<div class="turn">
+  <div class="staff">Staff: What visits has Iggy had?</div>
+  <div class="assistant">
+    I can only look up owner and pet information right now — I can't help with that.
+    <div class="trace">
+      <div>🔧 (no tool call — request outside supported scope)</div>
+    </div>
+  </div>
+</div>
+
+<form method="post" action="#">
+  <input type="text" name="message" placeholder="Ask about an owner or pet...">
+  <button type="submit">Send</button>
+</form>
+
+<p style="color:#888; font-size:0.8em;">
+  Prototype notes: full-page form submit (no JS), conversation history rendered top-to-bottom,
+  one-line tool-call trace under each assistant reply, no login/access gate, state is in-memory/session-only.
+</p>
+</body>
+</html>

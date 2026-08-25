@@ -1,0 +1,119 @@
+<!-- PROTOTYPE — throwaway, answers ticket #6 (Decide the staff chat and activity trace seam) -->
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>🦜 Clinic Assistant — prototype</title>
+<style>
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    max-width: 700px;
+    margin: 40px auto;
+    background: linear-gradient(180deg, #fff8e7 0%, #eafaf1 100%);
+    padding: 20px;
+  }
+  h2 { display: flex; align-items: center; gap: 10px; }
+  .parrot {
+    display: inline-block;
+    font-size: 2em;
+    animation: bob 2s ease-in-out infinite;
+  }
+  @keyframes bob {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-6px) rotate(-8deg); }
+  }
+  .turn { margin-bottom: 22px; display: flex; flex-direction: column; }
+  .staff-row { align-self: flex-end; max-width: 75%; }
+  .staff-bubble {
+    background: #4f8cff; color: white; padding: 10px 14px; border-radius: 16px 16px 4px 16px;
+    animation: pop-in 0.25s ease-out;
+  }
+  .assistant-row { align-self: flex-start; max-width: 78%; display: flex; gap: 8px; align-items: flex-start; }
+  .assistant-bubble {
+    background: #ffffff; border: 2px solid #ffd166; padding: 10px 14px; border-radius: 16px 16px 16px 4px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    animation: pop-in 0.3s ease-out;
+  }
+  @keyframes pop-in {
+    from { opacity: 0; transform: translateY(6px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .avatar { font-size: 1.6em; }
+  .trace {
+    font-size: 0.8em; color: #7a6a00; margin-top: 8px; padding: 6px 10px;
+    background: #fffbe6; border-radius: 10px; border: 1px dashed #ffd166;
+  }
+  .trace div { margin: 2px 0; }
+  form { margin-top: 30px; display: flex; gap: 8px; }
+  input[type=text] {
+    flex: 1; padding: 10px 14px; border-radius: 20px; border: 2px solid #4f8cff; font-size: 1em;
+  }
+  button {
+    padding: 10px 18px; border-radius: 20px; border: none; background: #4f8cff; color: white;
+    font-size: 1em; cursor: pointer;
+  }
+  button:hover { background: #3a75e6; }
+  .intro-row { display: flex; gap: 8px; align-items: center; margin-bottom: 24px; }
+  .intro-bubble {
+    background: #eafaf1; border: 2px dashed #6fcf97; padding: 10px 14px; border-radius: 16px; font-style: italic;
+  }
+</style>
+</head>
+<body>
+<h2><span class="parrot">🦜</span> Percy the Clinic Assistant</h2>
+
+<div class="intro-row">
+  <span class="avatar">🦜</span>
+  <div class="intro-bubble">Squawk! 👋 I can help you look up owner and pet info — but I can't make changes or give medical advice. 🩺🚫</div>
+</div>
+
+<div class="turn">
+  <div class="staff-row"><div class="staff-bubble">🧑‍💼 Do you have anyone named Davis?</div></div>
+</div>
+<div class="turn">
+  <div class="assistant-row">
+    <span class="avatar">🦜</span>
+    <div>
+      <div class="assistant-bubble">🔍 I found a couple of matches: <b>Betty Davis</b> 🏡 Windsor, <b>Harold Davis</b> 🏡 Waterloo. Which one did you mean?</div>
+      <div class="trace"><div>🔧 owner lookup ("Davis") → 2 matches found</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="turn">
+  <div class="staff-row"><div class="staff-bubble">🧑‍💼 Betty</div></div>
+</div>
+<div class="turn">
+  <div class="assistant-row">
+    <span class="avatar">🦜</span>
+    <div>
+      <div class="assistant-bubble">📇 <b>Betty Davis</b> — 638 Cardinal Ave, Sun Prairie ☎️ 6085551749<br>🐾 Pets: Iggy (lizard 🦎, born 2020-03-04)</div>
+      <div class="trace"><div>🔧 owner lookup ("Betty Davis") → 1 match found</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="turn">
+  <div class="staff-row"><div class="staff-bubble">🧑‍💼 What visits has Iggy had?</div></div>
+</div>
+<div class="turn">
+  <div class="assistant-row">
+    <span class="avatar">🦜</span>
+    <div>
+      <div class="assistant-bubble">🙅 Squawk, sorry! I can only look up owner and pet info right now — I can't help with that.</div>
+      <div class="trace"><div>🔧 no tool call — request outside supported scope</div></div>
+    </div>
+  </div>
+</div>
+
+<form method="post" action="#">
+  <input type="text" name="message" placeholder="Ask Percy about an owner or pet...">
+  <button type="submit">Send 🐾</button>
+</form>
+
+<p style="color:#888; font-size:0.8em; margin-top: 20px;">
+  Prototype notes: still a full-page form submit (no JS) with in-memory/session-only history and one-line tool trace —
+  only the persona (🦜 Percy), chat-bubble visual treatment, emoji, and light animation are new here.
+</p>
+</body>
+</html>

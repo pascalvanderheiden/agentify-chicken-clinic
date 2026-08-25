@@ -58,11 +58,11 @@
             <span th:text="#{assistant.nav}">Clinic Assistant</span>
           </li>
 
-          <li
-            th:replace="~{::menuItem ('/oups','error','trigger a RuntimeException to see how it is handled','exclamation-triangle',#{error})}">
-            <span class="fa exclamation-triangle" aria-hidden="true"></span>
-            <span th:text="#{error}">Error</span>
-          </li>
+          <!--
+            /oups is the framework's error-demonstration route.
+            It is intentionally not in normal staff navigation to avoid confusion
+            with a real assistant outage. The route remains available for workshop use.
+          -->
 
         </ul>
       </div>

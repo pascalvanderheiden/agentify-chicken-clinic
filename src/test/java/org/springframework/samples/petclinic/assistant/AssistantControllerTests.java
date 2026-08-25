@@ -116,4 +116,21 @@ class AssistantControllerTests {
 			.andExpect(model().attributeExists("turns"));
 	}
 
+	@Test
+	void serviceUnavailableTurnReportsNoDataRetrieved() throws Exception {
+		// Simulates AssistantChatSession.chat() returning the failure-path turn when the
+		// model endpoint is unreachable. The trace must explicitly state no data was
+		// retrieved so the staff member is not misled about data provenance.
+		String serviceFailureReply = "I was unable to reach the assistant service. Please try again.";
+		String noDataTrace = "Assistant service call failed — no clinic data was retrieved.";
+		ChatTurn failureTurn = new ChatTurn("Who owns Basil?", serviceFailureReply, noDataTrace);
+		given(this.chatSession.chat(anyString())).willReturn(failureTurn);
+		given(this.chatSession.getTurns()).willReturn(List.of(failureTurn));
+
+		this.mockMvc.perform(post("/assistant").param("message", "Who owns Basil?"))
+			.andExpect(status().isOk())
+			.andExpect(view().name("assistant/chat"))
+			.andExpect(model().attribute("turns", List.of(failureTurn)));
+	}
+
 }

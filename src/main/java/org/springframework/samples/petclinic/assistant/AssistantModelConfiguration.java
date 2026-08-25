@@ -33,9 +33,9 @@ import org.springframework.context.annotation.Configuration;
  *
  * <p>
  * Logs the resolved endpoint and deployment name at INFO so deployment issues are visible
- * in application logs without requiring a live request. Throws
- * {@link IllegalStateException} if the endpoint is not configured, because without an
- * Azure OpenAI endpoint the application cannot serve any assistant request.
+ * in application logs without requiring a live request. When the endpoint is still the
+ * local-dev placeholder, a prominent warning is logged and startup continues — the
+ * application is NOT prevented from starting.
  */
 @Configuration
 class AssistantModelConfiguration {

@@ -56,7 +56,7 @@
 
 **Key learning:** The preflight evidence file is the ground truth for deployed role state. The "Foundry User" role grants data-plane inference without a key when `disableLocalAuth: true`. The infra emits `AZURE_OPENAI_DEPLOYMENT=gpt-5-4-mini` (deployment name) which is what Spring AI Azure OpenAI needs for `deployment-name`; `AZURE_OPENAI_MODEL=gpt-5.4-mini` is the model family name and informational only for the Azure provider.
 
-**Fix location:** Trinity's Java/config domain — swap starter (`spring-ai-azure-openai-spring-boot-starter`) and fix `application.properties` to use `spring.ai.azure.openai.*` properties.
+**Fix location:** Trinity's Java/config domain. The resolved implementation keeps `spring-ai-starter-model-openai:2.0.1` (no separate Azure starter — `spring-ai-azure-openai-spring-boot-starter` was considered but 2.0.1 is not in Maven Central) and activates Azure mode via `spring.ai.openai.microsoft-foundry=true`, `spring.ai.openai.microsoft-deployment-name`, and explicit `com.azure:azure-identity:1.18.2` dependency. User selected managed identity Option A. Live Azure acceptance remains open (human Acceptance Gate).
 
 **Decision filed:** `.squad/decisions/inbox/tank-azure-identity-fix.md`
 

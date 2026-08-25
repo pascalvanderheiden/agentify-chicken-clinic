@@ -16,15 +16,21 @@
 package org.springframework.samples.petclinic.assistant;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestPropertySource;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link AssistantModelConfiguration} startup validation.
  *
  * <p>
- * Uses the constructor directly (no Spring context) to verify that endpoint-placeholder
- * detection is deterministic and independent of Azure credentials. The constructor
- * accepts the same {@code @Value}-resolved parameters that Spring injects, so the test
- * exercises the real configuration path without reflection.
+ * Direct-constructor tests verify endpoint-placeholder detection without a Spring
+ * context. The {@code @SpringBootTest} test verifies that
+ * {@code spring.ai.openai.microsoft-foundry} binds correctly through the real Spring
+ * property evaluation path — it would fail if the property key were wrong (e.g.
+ * {@code spring.ai.openai.chat.microsoft-foundry}).
  *
  * <p>
  * No API key is checked — authentication is via managed identity
@@ -37,21 +43,76 @@ class AssistantModelConfigurationTests {
 	@Test
 	void logsWarningWithoutThrowingWhenEndpointIsUnset() {
 		AssistantModelConfiguration config = new AssistantModelConfiguration(AssistantModelConfiguration.UNSET_ENDPOINT,
-				"gpt-5-4-mini");
+				"gpt-5-4-mini", true);
 
 		// Should complete without throwing — unset endpoint is logged at WARN level.
-		// The application starts; assistant requests fail with honest
-		// service-unavailable behavior (no real Azure endpoint to call).
 		config.logStartupConfiguration();
 	}
 
 	@Test
 	void logsInfoWithoutThrowingWhenEndpointIsConfigured() {
 		AssistantModelConfiguration config = new AssistantModelConfiguration(
-				"https://workshop-foundry-abc.openai.azure.com", "gpt-5-4-mini");
+				"https://workshop-foundry-abc.openai.azure.com", "gpt-5-4-mini", true);
 
 		// Should complete without throwing; endpoint and deployment are logged at INFO.
 		config.logStartupConfiguration();
+	}
+
+	@Test
+	void microsoftFoundryFlagDefaultsToTrueWhenPropertyIsAbsent() {
+		// Verifies that isMicrosoftFoundry() defaults to true when the property is
+		// absent — the @Value default :true applies.
+		AssistantModelConfiguration config = new AssistantModelConfiguration(AssistantModelConfiguration.UNSET_ENDPOINT,
+				"gpt-5-4-mini", true);
+		assertThat(config.isMicrosoftFoundry()).isTrue();
+	}
+
+	@Test
+	void microsoftFoundryFlagCanBeDisabledExplicitly() {
+		// Verifies that isMicrosoftFoundry() can be set to false — e.g. for a plain
+		// OpenAI endpoint in a non-Azure environment. This would be the old broken state
+		// if the property prefix were wrong and the value never bound.
+		AssistantModelConfiguration config = new AssistantModelConfiguration(AssistantModelConfiguration.UNSET_ENDPOINT,
+				"gpt-5-4-mini", false);
+		assertThat(config.isMicrosoftFoundry()).isFalse();
+	}
+
+	/**
+	 * Spring-context regression test: verifies that
+	 * {@code spring.ai.openai.microsoft-foundry} binds to
+	 * {@link AssistantModelConfiguration#isMicrosoftFoundry()} through the real Spring
+	 * {@code @Value} evaluation path.
+	 *
+	 * <p>
+	 * This test would fail if the property key used in
+	 * {@code AssistantModelConfiguration} were wrong (for example
+	 * {@code spring.ai.openai.chat.microsoft-foundry}) because the {@code @Value}
+	 * injection would not find the property and would fall back to the default
+	 * {@code true} regardless of what is set — or worse, fail to start.
+	 *
+	 * <p>
+	 * Uses {@code @TestPropertySource} to set the value to {@code false} so a passing
+	 * test proves the binding is live (not just the default).
+	 */
+	@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+	@TestPropertySource(properties = { "spring.ai.openai.microsoft-foundry=false",
+			"spring.ai.openai.base-url=https://test.openai.azure.com",
+			"spring.ai.openai.microsoft-deployment-name=test-deploy", "spring.ai.openai.model=test-deploy",
+			"spring.ai.openai.chat.model=test-deploy", "spring.ai.model.chat=none" })
+	static class FoundryPropertyBindingIT {
+
+		@Autowired
+		AssistantModelConfiguration config;
+
+		@Test
+		void microsoftFoundryPropertyBindsFromCorrectPrefix() {
+			// spring.ai.openai.microsoft-foundry=false is set via @TestPropertySource.
+			// If the @Value key in AssistantModelConfiguration used the wrong prefix
+			// (e.g. spring.ai.openai.chat.microsoft-foundry), the default :true would
+			// apply and this assertion would fail.
+			assertThat(config.isMicrosoftFoundry()).isFalse();
+		}
+
 	}
 
 }

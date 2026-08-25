@@ -27,15 +27,24 @@ import org.springframework.context.annotation.Configuration;
  *
  * <p>
  * Uses the Spring AI 2.0.1 Azure/Foundry integration built into
- * {@code spring-ai-starter-model-openai} via {@code spring.ai.openai.microsoft-foundry}.
+ * {@code spring-ai-starter-model-openai}. The relevant properties are:
+ * <ul>
+ * <li>{@code spring.ai.openai.microsoft-foundry} — must be {@code true} to enable Azure
+ * routing; binds to {@code OpenAiCommonProperties} (prefix {@code spring.ai.openai}),
+ * verified against spring-ai-autoconfigure-model-openai 2.0.1 bytecode.</li>
+ * <li>{@code spring.ai.openai.microsoft-deployment-name} — deployment name sent to
+ * Azure.</li>
+ * <li>{@code spring.ai.openai.model} / {@code spring.ai.openai.chat.model} — model name
+ * used by the ChatOptions.</li>
+ * </ul>
  * Authentication is via managed identity (DefaultAzureCredential from
  * {@code azure-identity}) — no API key is required or expected.
  *
  * <p>
- * Logs the resolved endpoint and deployment name at INFO so deployment issues are visible
- * in application logs without requiring a live request. When the endpoint is still the
- * local-dev placeholder, a prominent warning is logged and startup continues — the
- * application is NOT prevented from starting.
+ * Logs the resolved endpoint, deployment name, and foundry-mode flag at INFO so
+ * deployment issues are visible in application logs without requiring a live request.
+ * When the endpoint is still the local-dev placeholder, a prominent warning is logged and
+ * startup continues — the application is NOT prevented from starting.
  */
 @Configuration
 class AssistantModelConfiguration {
@@ -51,10 +60,18 @@ class AssistantModelConfiguration {
 
 	private final String deploymentName;
 
+	private final boolean microsoftFoundry;
+
 	AssistantModelConfiguration(@Value("${spring.ai.openai.base-url}") String endpoint,
-			@Value("${spring.ai.openai.microsoft-deployment-name}") String deploymentName) {
+			@Value("${spring.ai.openai.microsoft-deployment-name}") String deploymentName,
+			@Value("${spring.ai.openai.microsoft-foundry:true}") boolean microsoftFoundry) {
 		this.endpoint = endpoint;
 		this.deploymentName = deploymentName;
+		this.microsoftFoundry = microsoftFoundry;
+	}
+
+	boolean isMicrosoftFoundry() {
+		return this.microsoftFoundry;
 	}
 
 	@PostConstruct
@@ -65,8 +82,9 @@ class AssistantModelConfiguration {
 					+ "AZURE_OPENAI_DEPLOYMENT to connect to a real Azure OpenAI resource.");
 			return;
 		}
-		logger.info("[Clinic Assistant] Azure OpenAI configuration resolved — endpoint: {}, deployment: {}",
-				this.endpoint, this.deploymentName);
+		logger.info(
+				"[Clinic Assistant] Azure OpenAI configuration resolved — endpoint: {}, deployment: {}, microsoft-foundry: {}",
+				this.endpoint, this.deploymentName, this.microsoftFoundry);
 	}
 
 }

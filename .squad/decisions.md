@@ -568,3 +568,23 @@
 - Document architectural decisions here
 - Keep history focused on work, decisions focused on direction
 - Inbox decisions are merged to this file after completion and independent review
+
+---
+
+### DEC-T-FOUNDRY-PROPS: Spring AI 2.0.1 foundry property binding — model name alignment
+
+**Date:** 2026-08-25
+**Author:** Trinity
+**Status:** Proposed — pending Pascal's Acceptance Gate
+**Evidence:** `.squad/decisions/inbox/trinity-foundry-properties.md`
+
+**Finding:** `spring.ai.openai.microsoft-foundry` (prefix `spring.ai.openai`) is the correct and sufficient key — verified by bytecode analysis of `spring-ai-autoconfigure-model-openai 2.0.1`. The `spring.ai.openai.chat.*` prefix also works via OR-merge in `resolveCommonProperties`, but is not required.
+
+**Root cause of outage:** Missing `spring.ai.openai.chat.model` and `spring.ai.openai.model`. `OpenAiChatProperties` defaults to `gpt-4o` which does not match the Azure deployment name, causing a 404 from Foundry.
+
+**Fix applied:**
+- Added `spring.ai.openai.model`, `spring.ai.openai.chat.model`, `spring.ai.openai.timeout=60s`, `spring.ai.openai.max-retries=2` to `application.properties`.
+- Made `spring.ai.openai.microsoft-foundry` override-able via `${AZURE_OPENAI_MICROSOFT_FOUNDRY:true}`.
+- Added `isMicrosoftFoundry()` seam and `FoundryPropertyBindingIT` `@SpringBootTest` regression test.
+
+**Residual risk:** Live Azure acceptance (correct Foundry routing, managed identity credential exchange) requires redeployment — not verified locally.

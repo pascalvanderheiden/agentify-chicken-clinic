@@ -1,0 +1,89 @@
+# deploy-azure.yml
+#
+# Deploys to Azure on every push to main (which covers both direct commits and
+# merged pull requests — a merged PR produces exactly one push to main, so no
+# duplicate deployments occur).
+#
+# Required repository secrets / variables
+# ────────────────────────────────────────
+# Secrets  (Settings → Secrets and variables → Actions → Secrets):
+#   AZURE_CLIENT_ID       — Client ID of the app registration used for OIDC
+#   AZURE_TENANT_ID       — Azure AD tenant ID
+#   AZURE_SUBSCRIPTION_ID — Target subscription ID
+#
+# Variables (Settings → Secrets and variables → Actions → Variables):
+#   AZURE_ENV_NAME        — AZD environment name (e.g. workshop-preflight-20260824125634)
+#   AZURE_LOCATION        — Azure region (e.g. swedencentral)
+#
+# OIDC federated credential setup (one-time, outside this repo):
+#   az ad app create --display-name "agentify-chicken-clinic-cicd"
+#   az ad sp create --id <appId>
+#   # Add federated credential: issuer=https://token.actions.githubusercontent.com
+#   #   subject=repo:<org>/<repo>:ref:refs/heads/main
+#   az role assignment create --role Contributor \
+#     --assignee <appId> --scope /subscriptions/<AZURE_SUBSCRIPTION_ID>
+#   # Store appId as AZURE_CLIENT_ID secret, tenant as AZURE_TENANT_ID,
+#   # subscription as AZURE_SUBSCRIPTION_ID.
+
+name: Deploy to Azure
+
+on:
+  push:
+    branches:
+      - main
+
+# Prevent overlapping deployments to main; cancel any in-progress run when a
+# new push arrives so only the latest commit ships.
+concurrency:
+  group: deploy-azure-main
+  cancel-in-progress: true
+
+permissions:
+  id-token: write   # required for OIDC token exchange
+  contents: read    # required to checkout the repository
+
+jobs:
+  deploy:
+    name: AZD provision + deploy
+    runs-on: ubuntu-latest
+    environment: production   # optional: tie to a GitHub Environment for approval gates
+
+    env:
+      AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME }}
+      AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install Azure Developer CLI (azd)
+        uses: azure/setup-azd@v2
+
+      - name: Log in to Azure (OIDC — no stored credentials)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: AZD authenticate (reuse the OIDC token already in the runner)
+        run: azd auth login --federated-credential-provider github
+
+      - name: AZD provision + deploy
+        run: azd up --no-prompt
+        env:
+          # azd reads these to locate / create the environment.
+          AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME }}
+          AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}

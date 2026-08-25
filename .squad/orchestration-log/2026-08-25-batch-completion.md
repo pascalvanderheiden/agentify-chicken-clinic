@@ -121,3 +121,32 @@ The following inbox entries are merged into `.squad/decisions.md` in the **Accep
 **Commit:** eff15d8 on main.  
 **Decisions status:** All inbox entries reviewed, cross-agent findings integrated, residual risks recorded. Ready for human Acceptance Gate and Learning Gate.
 
+
+## Issue #13: Percy Parrot GUI & Startup Diagnostics — Completed
+
+**Date:** 2026-08-25 14:43 UTC  
+**Agents:** Trinity (backend), Tank (UI), Switch (testing), Morpheus (review/fix)  
+**Scope:** Staff-facing diagnostic UI, Percy persona, startup validation, `/oups` removal  
+**Status:** COMPLETED — Full suite 142/142 tests passed, 0 failures
+
+### Sequence
+
+1. **Trinity (backend):** Implemented `AssistantModelConfiguration` with startup API-key validation (initially throw; revised by Morpheus to warn-not-throw). Removed `/oups` from navbar. Added controller test for service-unavailable case.
+
+2. **Tank (UI):** Integrated Percy parrot GUI from wayfinder-proto artifact into `assistant/chat.html`. Added CSS pseudo-element for parrot emoji, intro bubble, i18n keys across all 10 locale files.
+
+3. **Switch (testing):** Added `AssistantParrotGuiTests` (17 MockMvc tests) covering parrot identity, bubble visibility, turn rendering, service-unavailable signal, `/oups` exclusion.
+
+4. **Morpheus (review):** Identified startup throw blocking inherited tests; revised `AssistantModelConfiguration` to constructor injection + warn-not-throw. Updated `AssistantModelConfigurationTests` to use constructor directly (no reflection). Verified `/oups` remains a separate demo route, not assistant error path.
+
+### Evidence
+
+- **Test coverage:** 142 passed (17 parrot GUI, 2 model config, 6 controller, 17 evidence, plus all legacy)
+- **Build:** `./mvnw test --no-pager` clean  
+- **Git diff:** Checked; committed awaiting final acceptance gate
+- **Residual:** Azure endpoint/model/quota/credential live reachability not proven; placeholder-key warning is log-only
+
+### Human Acceptance Gate
+
+Residual risks documented. Issue #13 remains open pending human confirmation of acceptable residual gaps.
+

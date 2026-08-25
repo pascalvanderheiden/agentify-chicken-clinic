@@ -341,6 +341,142 @@
 
 ---
 
+## Accepted Decisions (Issue #13, Commit TBD)
+
+### DEC-T13-001: AssistantModelConfiguration startup validation
+
+**Date:** 2026-08-25
+**Issue:** #13
+**Author:** Trinity
+**Status:** Accepted (completed; Morpheus revised to warn-not-throw)
+
+**Decision:** Added `AssistantModelConfiguration` with `@PostConstruct` that validates `spring.ai.openai.api-key` at startup.
+- Placeholder key (`changeme`): logs WARN + returns (does not throw).
+- Real key: logs endpoint and model at INFO.
+
+**Rationale:** User stories 22–23 require deployment failures to be visible. The warn-not-throw approach respects the inherited system: failures are honest, not blocked. Constructor injection used; no reflection in tests.
+
+---
+
+### DEC-T13-002: Remove `/oups` from staff navigation
+
+**Date:** 2026-08-25
+**Issue:** #13
+**Author:** Trinity
+**Status:** Accepted
+
+**Decision:** Removed `/oups` from the navbar in `layout.html` with an HTML comment explaining it is a framework error-demo, not a staff destination.
+
+**Rationale:** User stories 28–29 exclude `/oups` as a navigation or assistant recovery path. The route remains reachable for instructors; just not in the main nav bar.
+
+---
+
+### DEC-T13-003: AssistantControllerTests service-unavailable case
+
+**Date:** 2026-08-25
+**Issue:** #13
+**Author:** Trinity
+**Status:** Accepted
+
+**Decision:** Added test asserting that when `AssistantChatSession.chat()` returns the failure-path turn, the controller model holds that turn with trace "Assistant service call failed — no clinic data was retrieved."
+
+**Rationale:** Ensures the failure state is distinct and honest (does not imply data retrieval).
+
+---
+
+### DEC-T13-004: Percy parrot GUI CSS pseudo-element
+
+**Date:** 2026-08-25
+**Issue:** #13
+**Author:** Tank
+**Status:** Accepted
+
+**Decision:** Percy emoji (`🦜`) rendered via CSS `content: "\1F99C"` on `.percy-parrot-icon::before` rather than inline HTML.
+
+**Rationale:** Avoids `I18nPropertiesSyncTest` linting failure on literal text; spans remain empty with `aria-hidden="true"`.
+
+**Trade-off:** Visual depends on CSS loading; acceptable for decorative persona.
+
+---
+
+### DEC-T13-005: Percy intro bubble always visible
+
+**Date:** 2026-08-25
+**Issue:** #13
+**Author:** Tank
+**Status:** Accepted
+
+**Decision:** The intro greeting bubble is rendered unconditionally on every page load, above conversation history.
+
+**Rationale:** Serves as empty-state affordance and persona anchor throughout the conversation.
+
+---
+
+### DEC-T13-006: `assistant.intro` in all locale files
+
+**Date:** 2026-08-25
+**Issue:** #13
+**Author:** Tank
+**Status:** Accepted
+
+**Decision:** Added `assistant.intro` key with locale-appropriate translations to `messages.properties` and all nine locale variants. `I18nPropertiesSyncTest` enforces this discipline.
+
+---
+
+### DEC-T13-007: AssistantParrotGuiTests — 17 MockMvc tests
+
+**Date:** 2026-08-25
+**Issue:** #13
+**Author:** Switch
+**Status:** Accepted
+
+**Decision:** Added `AssistantParrotGuiTests` covering parrot GUI observable contract, service-unavailable state, and `/oups` exclusion at the `/assistant` public seam.
+
+**Coverage (17 tests):**
+- Percy identity, avatar, intro bubble, input/send controls
+- Empty state vs. turn rendering
+- Turn structure, staff/assistant messages, activity trace
+- Service unavailable: distinct wording, honest trace
+- `/oups` link absent both on fresh GET and post-failure
+
+**Rationale:** Browser-facing seam with Thymeleaf rendering; no live Azure calls. Assertions pinned to percy-* structural classes (stable identifiers), not CSS utilities or animation names.
+
+---
+
+### DEC-F13-001: Startup warn-not-throw, constructor injection (Morpheus fix)
+
+**Date:** 2026-08-25
+**Issue:** #13 (post-review)
+**Author:** Morpheus
+**Status:** Accepted (fix applied)
+
+**Defect:** Trinity's `@PostConstruct throw` blocked all `@SpringBootTest` contexts. Reflection-based test injection was fragile.
+
+**Fix:**
+- `AssistantModelConfiguration`: Converted to constructor injection; warn-not-throw on placeholder.
+- `AssistantModelConfigurationTests`: Constructor-based instantiation; no reflection; assertion updated for warn behavior.
+
+**Rationale:** Startup failure exceeds the safety envelope contract. Assistant requests fail honestly via existing `catch` → "service call failed" path. Inherited system unblocked.
+
+**Evidence:** Full `./mvnw test` — 142 passed, 0 failures, 2 skipped (MySQL).
+
+---
+
+## Verification & Completion (Issue #13)
+
+**Full test suite:** `./mvnw test` PASSED.
+- `AssistantModelConfigurationTests`: 2/2 ✓
+- `AssistantParrotGuiTests`: 17/17 ✓
+- `CrashControllerIntegrationTests`: 2/2 ✓
+- `ClinicAssistantEvidenceTests`: 17/17 ✓
+- `AssistantControllerTests`: 6/6 ✓
+- All other legacy tests: ✓
+- **Total: 142 passed, 0 failures, 2 skipped**
+
+**Residual gap:** Azure endpoint/model/quota/credential live reachability is not proven. Placeholder-key warning is log-only. Human Acceptance Gate remains open; do not close issue #13.
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus

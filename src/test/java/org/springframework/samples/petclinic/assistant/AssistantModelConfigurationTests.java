@@ -21,30 +21,36 @@ import org.junit.jupiter.api.Test;
  * Tests for {@link AssistantModelConfiguration} startup validation.
  *
  * <p>
- * These tests use the constructor directly (no Spring context) to verify that
- * placeholder-key detection is deterministic and independent of deployment credentials.
- * The constructor accepts the same {@code @Value}-resolved parameters that Spring would
- * inject, so the test exercises the real configuration path without reflection.
+ * Uses the constructor directly (no Spring context) to verify that endpoint-placeholder
+ * detection is deterministic and independent of Azure credentials. The constructor
+ * accepts the same {@code @Value}-resolved parameters that Spring injects, so the test
+ * exercises the real configuration path without reflection.
+ *
+ * <p>
+ * No API key is checked — authentication is via managed identity
+ * (DefaultAzureCredential). The only startup concern is whether
+ * {@code AZURE_OPENAI_ENDPOINT} is set to a real endpoint rather than the local-dev
+ * placeholder.
  */
 class AssistantModelConfigurationTests {
 
 	@Test
-	void logsWarningWithoutThrowingWhenApiKeyIsPlaceholder() {
-		AssistantModelConfiguration config = new AssistantModelConfiguration("https://models.inference.ai.azure.com",
-				AssistantModelConfiguration.PLACEHOLDER_KEY, "gpt-4o-mini");
+	void logsWarningWithoutThrowingWhenEndpointIsUnset() {
+		AssistantModelConfiguration config = new AssistantModelConfiguration(AssistantModelConfiguration.UNSET_ENDPOINT,
+				"gpt-5-4-mini");
 
-		// Should complete without throwing — misconfiguration is logged at WARN level.
+		// Should complete without throwing — unset endpoint is logged at WARN level.
 		// The application starts; assistant requests fail with honest
-		// service-unavailable behavior.
+		// service-unavailable behavior (no real Azure endpoint to call).
 		config.logStartupConfiguration();
 	}
 
 	@Test
-	void doesNotThrowWhenApiKeyIsConfigured() {
-		AssistantModelConfiguration config = new AssistantModelConfiguration("https://myworkshop.openai.azure.com",
-				"real-key-would-go-here", "gpt-4o-mini");
+	void logsInfoWithoutThrowingWhenEndpointIsConfigured() {
+		AssistantModelConfiguration config = new AssistantModelConfiguration(
+				"https://workshop-foundry-abc.openai.azure.com", "gpt-5-4-mini");
 
-		// Should complete without throwing; endpoint/model are logged at INFO level.
+		// Should complete without throwing; endpoint and deployment are logged at INFO.
 		config.logStartupConfiguration();
 	}
 

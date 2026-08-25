@@ -99,8 +99,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * </ul>
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-		properties = { "spring.ai.openai.api-key=stub-key-not-used",
-				"spring.ai.openai.base-url=https://stub.example.invalid" })
+		properties = { "spring.ai.openai.base-url=https://stub.example.invalid",
+				"spring.ai.openai.microsoft-foundry=true",
+				"spring.ai.openai.microsoft-deployment-name=stub-deployment" })
 @AutoConfigureMockMvc
 @DisabledInNativeImage
 @DisabledInAotMode

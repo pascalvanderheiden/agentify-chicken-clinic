@@ -58,7 +58,28 @@
   `org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest` (not the old
   `boot.test.autoconfigure.orm.jpa` path used in Spring Boot < 4.x).
 
-### Gradle build / Spring AI dependency sync (2026-08-25)
+### Azure provider fix — managed identity (2026-08-25)
+
+- `spring-ai-openai:2.0.1` already contains Azure managed-identity support via
+  `AzureInternalOpenAiHelper` + `OpenAiSetup.azureAuthentication()`. No separate
+  `spring-ai-azure-openai` starter needed (and that starter's 2.0.1 is not in Maven
+  Central anyway — latest is 2.0.0-M4).
+- To activate Azure/Foundry mode: set `spring.ai.openai.microsoft-foundry=true`,
+  `spring.ai.openai.microsoft-deployment-name=<deployment>`, and add
+  `com.azure:azure-identity` (optional dep in spring-ai-openai pom) explicitly.
+- `OpenAiSetup` detects Azure by endpoint URL (`openai.azure.com`) and switches to the
+  correct Azure deployment URL path — this fixes Tank's H2/H3 (wrong path, wrong name).
+- Startup validation: sentinel is `UNSET_ENDPOINT` (default placeholder endpoint), not an
+  API key. When endpoint is the placeholder, WARN; otherwise INFO with endpoint + deploy.
+- `ClinicAssistantEvidenceTests` `@SpringBootTest(properties=...)`: remove `api-key` stub,
+  add `microsoft-foundry=true` and `microsoft-deployment-name=stub-deployment`.
+- Always inspect the actual jars (`javap -verbose`, `jar tf`) to know the real property
+  names — Spring Boot kebab-case binding maps `microsoftDeploymentName` →
+  `microsoft-deployment-name`. Do not guess from docs.
+- `azure-identity` version: use the exact version declared in `spring-ai-openai`'s own pom
+  (check with `unzip -p <jar> META-INF/maven/.../pom.xml | grep azure-identity`).
+
+
 
 - `build.gradle` is a parallel build file alongside `pom.xml`. Any dependency added to
   `pom.xml` must also be added to `build.gradle` — they are not automatically synced.

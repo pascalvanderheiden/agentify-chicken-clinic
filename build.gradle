@@ -37,6 +37,8 @@ ext.webjarsBootstrapVersion = "5.3.8"
 dependencies {
   implementation 'org.springframework.boot:spring-boot-starter-cache'
   implementation "org.springframework.ai:spring-ai-starter-model-openai:${springAiVersion}"
+  // Azure Identity — enables managed identity credential for spring-ai-openai Azure mode
+  implementation "com.azure:azure-identity:1.18.2"
   implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
   implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
   implementation 'org.springframework.boot:spring-boot-starter-webmvc'
